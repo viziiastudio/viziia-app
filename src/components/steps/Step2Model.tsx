@@ -125,7 +125,7 @@ function SkinSwatch({ color, label, active, onClick }: { color: string; label: s
     <div onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
       <div style={{
         width: 32, height: 32, borderRadius: 10, background: color, cursor: "pointer",
-        border: "none", outline: "none",
+        border: "none", outline: "none", WebkitTapHighlightColor: "transparent",
         boxShadow: active ? "0 0 0 2px #c9a84c" : "none",
         transition: "box-shadow .15s",
       }} />
@@ -205,7 +205,7 @@ function FaceShapeSelector({ value, onChange }: { value: string; onChange: (v: s
                 <path d={f.path} fill={active ? "rgba(201,168,76,.35)" : "rgba(255,255,255,.08)"} stroke={active ? "var(--gold)" : "rgba(255,255,255,.2)"} strokeWidth={1.5} />
               </svg>
             </div>
-            <span style={{ fontSize: 7.5, color: active ? "var(--gold)" : "var(--steel2)", fontFamily: "'DM Mono',monospace", transition: "color .15s" }}>{f.name}</span>
+            <span style={{ fontSize: 7.5, color: active ? "var(--gold)" : "var(--steel2)", fontFamily: "'DM Mono',monospace", transition: "color .15s", width: "100%", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
           </div>
         )
       })}

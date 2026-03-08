@@ -49,6 +49,9 @@
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 *:focus, *:focus-visible { outline: none !important; }
+/* Prevent browser focus box-shadow rings on interactive divs (iOS Safari fix).
+   No !important — inline box-shadow (e.g. active swatch ring) still takes precedence. */
+div:focus, div:focus-visible { box-shadow: none; }
 html { scroll-behavior: smooth; background: #07090d; }
 body {
   font-family: 'Outfit', sans-serif;

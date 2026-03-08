@@ -17,7 +17,7 @@ function CardHeader({ icon, title }: { icon: string; title: string }) {
 }
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <div onClick={onClick} style={{ padding: "5px 11px", borderRadius: 20, border: `1px solid ${active ? "var(--gold-bdr2)" : "var(--bdr)"}`, background: active ? "var(--gold-dim2)" : "var(--panel)", fontSize: 11, color: active ? "var(--gold)" : "var(--steel)", cursor: "pointer", transition: "all .16s" }}>
+    <div onClick={onClick} style={{ padding: "5px 11px", borderRadius: 20, border: `1px solid ${active ? "var(--gold-bdr2)" : "var(--bdr)"}`, background: active ? "var(--gold-dim2)" : "var(--panel)", fontSize: 11, color: active ? "var(--gold)" : "var(--steel)", cursor: "pointer", transition: "all .16s", whiteSpace: "nowrap" }}>
       {label}
     </div>
   )

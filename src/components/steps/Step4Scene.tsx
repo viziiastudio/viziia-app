@@ -91,7 +91,7 @@ export default function Step4Scene({ state, update }: Props) {
                 <div key={m.name} onClick={() => update({ mood: m.name })}
                   style={{ borderRadius: 9, overflow: "hidden", cursor: "pointer", border: `2px solid ${state.mood === m.name ? "var(--gold)" : "transparent"}`, boxShadow: state.mood === m.name ? "0 0 0 1px var(--gold)" : "none", transition: "all .2s" }}>
                   <div className={m.cls} style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{m.emoji}</div>
-                  <div style={{ padding: "4px 3px", fontSize: 8.5, textAlign: "center", background: "var(--panel)", color: state.mood === m.name ? "var(--gold)" : "var(--paper2)", fontWeight: 500 }}>{m.name}</div>
+                  <div style={{ padding: "4px 3px", fontSize: 8.5, textAlign: "center", background: "var(--panel)", color: state.mood === m.name ? "var(--gold)" : "var(--paper2)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
                 </div>
               ))}
             </div>
@@ -117,7 +117,7 @@ export default function Step4Scene({ state, update }: Props) {
                         {state.background === bg.name && !state.useCustomBg && (
                           <div style={{ position: "absolute", top: 3, right: 3, width: 14, height: 14, background: "var(--gold)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7.5, color: "var(--ink)", fontWeight: 800, lineHeight: "14px", textAlign: "center" }}>✓</div>
                         )}
-                        <span style={{ fontSize: 7.5, color: bg.textColor ?? "rgba(255,255,255,.88)", fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,.95)" }}>{bg.name}</span>
+                        <span style={{ fontSize: 7.5, color: bg.textColor ?? "rgba(255,255,255,.88)", fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,.95)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bg.name}</span>
                       </div>
                     </div>
                   ))}
