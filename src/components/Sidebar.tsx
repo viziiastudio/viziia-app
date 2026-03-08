@@ -111,6 +111,34 @@ export default function Sidebar({ state, modelBg, totalCost, remaining }: Props)
         <Row label="Background"  value={state.useCustomBg ? "Custom" : state.background}      unset={!sceneConfigured} />
       </section>
 
+      {/* Expected Results */}
+      {modelConfigured && (
+        <section style={{ display: "flex", flexDirection: "column" }}>
+          <SectionLabel>Expected Results</SectionLabel>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[0, 1].map(i => (
+              <div key={i} style={{
+                flex: 1, height: 80, borderRadius: 8,
+                background: `linear-gradient(${135 + i * 30}deg, var(--panel3), var(--panel2))`,
+                border: "1px solid var(--bdr)",
+                overflow: "hidden", position: "relative",
+              }}>
+                <div style={{
+                  position: "absolute", top: 0, left: "-100%", width: "60%", height: "100%",
+                  background: "linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent)",
+                  animation: "shimmer 2.8s ease infinite",
+                  animationDelay: `${i * 0.5}s`,
+                }} />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: .08, fontSize: 22 }}>🕶️</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 9, color: "var(--steel2)", textAlign: "center", marginTop: 7, fontFamily: "'DM Mono',monospace", letterSpacing: ".04em" }}>
+            Your AI photos will look like this
+          </div>
+        </section>
+      )}
+
       {/* Credits */}
       <section style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
         <SectionLabel>Credits</SectionLabel>

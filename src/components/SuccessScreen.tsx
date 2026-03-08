@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { motion } from "motion/react"
 
 interface Props {
@@ -8,6 +9,29 @@ interface Props {
 }
 
 export default function SuccessScreen({ qty, previewMode, onReset, onApprove }: Props) {
+  const [shareStatus, setShareStatus] = useState<string | null>(null)
+  const [showToast, setShowToast] = useState(false)
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "VIZIIA Studio — AI Eyewear Photography", url: window.location.href })
+        setShareStatus("Shared!")
+      } else {
+        await navigator.clipboard.writeText(window.location.href)
+        setShareStatus("Link copied!")
+      }
+    } catch (_e) {
+      setShareStatus("Link copied!")
+    }
+    setTimeout(() => setShareStatus(null), 2000)
+  }
+
+  const handleDownloadAll = () => {
+    setShowToast(true)
+    setTimeout(() => setShowToast(false), 2000)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -150,6 +174,43 @@ export default function SuccessScreen({ qty, previewMode, onReset, onApprove }: 
           >
             Start a new shoot
           </motion.button>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: .45 }}
+            style={{ display: "flex", gap: 8, width: "100%", maxWidth: 300, marginTop: 4 }}
+          >
+            <button onClick={handleShare} style={{
+              flex: 1, padding: "10px 8px", background: "transparent",
+              border: "1px solid var(--bdr)", borderRadius: 9,
+              color: shareStatus ? "var(--gold)" : "var(--steel)",
+              fontFamily: "'Outfit',sans-serif", fontSize: 11,
+              cursor: "pointer", transition: "color .2s",
+            }}>
+              {shareStatus ?? "↗ Share"}
+            </button>
+            <button onClick={handleDownloadAll} style={{
+              flex: 1, padding: "10px 8px", background: "transparent",
+              border: "1px solid var(--bdr)", borderRadius: 9,
+              color: "var(--steel)", fontFamily: "'Outfit',sans-serif",
+              fontSize: 11, cursor: "pointer",
+            }}>
+              ↓ Download All
+            </button>
+          </motion.div>
+          {showToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                marginTop: 10, padding: "8px 16px", background: "rgba(34,197,94,.1)",
+                border: "1px solid rgba(34,197,94,.3)", borderRadius: 8,
+                color: "var(--success)", fontSize: 11,
+              }}
+            >
+              Coming soon ✓
+            </motion.div>
+          )}
         </div>
       </div>
     </motion.div>

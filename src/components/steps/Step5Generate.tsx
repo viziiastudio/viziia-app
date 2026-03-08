@@ -59,6 +59,46 @@ export default function Step5Generate({ state, update }: Props) {
         </p>
       </div>
 
+      <BlurFade delay={0}>
+        <Card>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--bdr2)", display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,rgba(255,255,255,.025) 0%,transparent 100%)" }}>
+            <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--panel)", border: "1px solid var(--bdr)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>✨</div>
+            <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--paper2)" }}>What to expect</span>
+            <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'DM Mono',monospace", color: "var(--steel2)" }}>⏱ ~45 seconds</span>
+          </div>
+          <div style={{ padding: 14 }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              {[
+                { caption: "Portrait · Editorial" },
+                { caption: "Detail · Product" },
+                { caption: "Lifestyle · Context" },
+              ].map((item, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{
+                    width: "100%",
+                    aspectRatio: state.format.replace(":", " / "),
+                    background: `linear-gradient(${135 + i * 20}deg, var(--panel3), var(--panel))`,
+                    border: "1px solid var(--bdr)",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    position: "relative",
+                  }}>
+                    <div style={{
+                      position: "absolute", top: 0, left: "-100%", width: "60%", height: "100%",
+                      background: "linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent)",
+                      animation: "shimmer 3s ease infinite",
+                      animationDelay: `${i * 0.4}s`,
+                    }} />
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: .08, fontSize: 24 }}>🕶️</div>
+                  </div>
+                  <span style={{ fontSize: 8.5, color: "var(--steel2)", fontFamily: "'DM Mono',monospace", textAlign: "center", letterSpacing: ".04em" }}>{item.caption}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </BlurFade>
+
       <BlurFade delay={0.05}>
         <Card>
           <CardHeader icon="🎯" title="What are these visuals for?" value={state.intent} />

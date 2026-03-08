@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import Header from "@/components/Header"
 import StepRail from "@/components/StepRail"
@@ -73,6 +73,9 @@ const defaultState: ViziiaState = {
 
 export default function App() {
   const [state, setState] = useState<ViziiaState>(defaultState)
+  const [savedState, setSavedState] = useState<ViziiaState | null>(null)
+  const [showRestoreBanner, setShowRestoreBanner] = useState(false)
+  const isFirstSave = useRef(true)
 
   const update = useCallback((patch: Partial<ViziiaState>) => {
     setState(prev => ({ ...prev, ...patch }))
@@ -101,11 +104,41 @@ export default function App() {
   }
   const resetAll = () => setState(defaultState)
 
+  // Mount: check localStorage for prior session
+  useEffect(() => {
+    const raw = localStorage.getItem("viziia_state")
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as ViziiaState
+        if (parsed && parsed.maxStep > 0) {
+          setSavedState(parsed)
+          setShowRestoreBanner(true)
+        }
+      } catch (_) {}
+    }
+  }, [])
+
+  // Auto-save on every state change (skip first render)
+  useEffect(() => {
+    if (isFirstSave.current) { isFirstSave.current = false; return }
+    localStorage.setItem("viziia_state", JSON.stringify(state))
+  }, [state])
+
+  const handleContinueSaved = () => {
+    if (savedState) setState({ ...savedState, generating: false, generated: false })
+    setShowRestoreBanner(false)
+  }
+  const handleStartFresh = () => {
+    localStorage.removeItem("viziia_state")
+    setState(defaultState)
+    setShowRestoreBanner(false)
+  }
+
   const totalCredits = state.qty * state.qualityMult
   const remaining = TOTAL_CREDITS - totalCredits
 
   const STEPS = [
-    <Step1Upload key="s1" state={state} update={update} />,
+    <Step1Upload key="s1" state={state} update={update} onNext={nextStep} />,
     <Step2Model  key="s2" state={state} update={update} />,
     <Step3Camera key="s3" state={state} update={update} />,
     <Step4Scene  key="s4" state={state} update={update} />,
@@ -117,8 +150,13 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100svh", width: "100%", background: "var(--ink)" }}>
-      <Header totalCredits={TOTAL_CREDITS} />
+      <Header totalCredits={TOTAL_CREDITS} step={state.step} onReset={resetAll} />
       <StepRail currentStep={state.step} maxStep={state.maxStep} goStep={goStep} />
+
+      {/* Progress bar */}
+      <div style={{ position: "fixed", top: 104, left: 0, right: 0, height: 2, zIndex: 99, background: "rgba(255,255,255,.04)" }}>
+        <div style={{ height: "100%", width: `${(state.step + 1) * 20}%`, background: "#c9a84c", transition: "width 0.4s ease", borderRadius: "0 2px 2px 0" }} />
+      </div>
 
       <div style={{ display: "flex", flexDirection: "row", minHeight: "100svh" }}>
         {/* MAIN AREA */}
@@ -135,6 +173,22 @@ export default function App() {
           }}
           className="main-scroll"
         >
+          {showRestoreBanner && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 10, padding: "9px 14px", marginBottom: 14,
+              background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)",
+              borderLeft: "2px solid var(--gold)", borderRadius: 9,
+              fontSize: 11, color: "var(--paper2)",
+            }}>
+              <span>Continue where you left off?</span>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <button onClick={handleContinueSaved} style={{ padding: "4px 12px", background: "var(--gold)", border: "none", borderRadius: 6, color: "var(--ink)", fontFamily: "'Outfit',sans-serif", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Continue</button>
+                <button onClick={handleStartFresh} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 6, color: "var(--steel)", fontFamily: "'Outfit',sans-serif", fontSize: 10, cursor: "pointer" }}>Start Fresh</button>
+                <button onClick={() => setShowRestoreBanner(false)} style={{ padding: "4px 8px", background: "transparent", border: "none", color: "var(--steel2)", fontSize: 12, cursor: "pointer", lineHeight: 1 }}>✕</button>
+              </div>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={state.step}

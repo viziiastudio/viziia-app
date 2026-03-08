@@ -1,7 +1,11 @@
 import { AnimatePresence, motion } from "motion/react"
 import type { ViziiaState } from "@/types"
 
-interface Props { state: ViziiaState; update: (p: Partial<ViziiaState>) => void }
+interface Props {
+  state: ViziiaState
+  update: (p: Partial<ViziiaState>) => void
+  onNext: () => void
+}
 
 const FRAME_SLOTS = [
   { badge: "FRONT", label: "Front view",    emoji: "🕶️", extracted: true },
@@ -9,7 +13,7 @@ const FRAME_SLOTS = [
   { badge: "3/4",   label: "3/4 angle",     emoji: "🕶️", extracted: true },
 ]
 
-export default function Step1Upload({ state, update }: Props) {
+export default function Step1Upload({ state, update, onNext }: Props) {
   const started = state.uploadStarted
 
   return (
@@ -74,11 +78,42 @@ export default function Step1Upload({ state, update }: Props) {
                 letterSpacing: ".08em", textTransform: "uppercase", cursor: "pointer",
                 position: "relative", overflow: "hidden",
                 boxShadow: "0 10px 40px rgba(201,168,76,.28), 0 2px 8px rgba(0,0,0,.4)",
-                marginBottom: 32,
+                marginBottom: 12,
               }}
             >
               <div style={{ position: "absolute", top: 0, left: "-100%", width: "60%", height: "100%", background: "linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)", animation: "shimmer 2.8s ease infinite" }} />
               Start Your Shoot →
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.28 }}
+              onClick={() => {
+                update({
+                  modelAge: 28,
+                  modelSkinTone: "#c8956c",
+                  modelHairColor: "Dark Brown",
+                  modelFaceShape: "Oval",
+                  modelOutfit: "Casual streetwear",
+                  uploadStarted: true,
+                })
+                onNext()
+              }}
+              style={{
+                padding: "9px 28px",
+                background: "transparent",
+                border: "1px solid var(--gold-bdr2)",
+                borderRadius: 12,
+                color: "var(--gold)",
+                fontFamily: "'Outfit',sans-serif",
+                fontSize: 12,
+                letterSpacing: ".06em",
+                cursor: "pointer",
+                marginBottom: 28,
+              }}
+            >
+              Try Demo →
             </motion.button>
 
             <motion.div
