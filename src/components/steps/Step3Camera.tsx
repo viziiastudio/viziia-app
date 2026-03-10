@@ -38,8 +38,8 @@ function CustomSlider({ label, value, min, max, step, displayVal, onChange }: { 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>{label}</span>
-        <span style={{ fontSize: 11, color: "var(--gold)", fontFamily: "'DM Mono',monospace", fontWeight: 500 }}>{displayVal}</span>
+        <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{label}</span>
+        <span style={{ fontSize: 11, color: "var(--gold)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontWeight: 500 }}>{displayVal}</span>
       </div>
       <div
         style={{ position: "relative", height: 28, touchAction: "none" }}
@@ -80,9 +80,9 @@ export default function Step3Camera({ state, update }: Props) {
   return (
     <div>
       <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--bdr)" }}>
-        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 03 / 05</span>
+        <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 03 / 05</span>
         <h1 className="serif" style={{ fontSize: 30, fontWeight: 300, lineHeight: 1.15, color: "var(--paper)" }}>
-          Configure the <em style={{ color: "var(--gold)", fontStyle: "italic" }}>camera</em>
+          Configure the <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>camera</span>
         </h1>
         <p style={{ marginTop: 6, fontSize: 12, color: "var(--steel)", fontWeight: 300, lineHeight: 1.7 }}>
           Set shot style, lens, lighting, and film parameters. Every setting is pre-engineered for eyewear.
@@ -168,7 +168,7 @@ export default function Step3Camera({ state, update }: Props) {
           <div style={{ padding: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <div>
-                <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 8, display: "block" }}>Flash Mode</span>
+                <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 8, display: "block" }}>Flash Mode</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {["No flash","Fill flash","Hard flash","Ring flash"].map(f => (
                     <Chip key={f} label={f} active={flashMode === f} onClick={() => { setFlashMode(f); update({ flashMode: f }) }} />
@@ -176,7 +176,7 @@ export default function Step3Camera({ state, update }: Props) {
                 </div>
               </div>
               <div>
-                <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 8, display: "block" }}>Lens Effect</span>
+                <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 8, display: "block" }}>Lens Effect</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {["None","Lens flare","Chromatic","Vignette"].map(f => (
                     <Chip key={f} label={f} active={lensEffect === f} onClick={() => { setLensEffect(f); update({ lensEffect: f }) }} />

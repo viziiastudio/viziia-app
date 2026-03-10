@@ -12,7 +12,7 @@ function CardHeader({ icon, title, value }: { icon: string; title: string; value
     <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--bdr2)", display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,rgba(255,255,255,.025) 0%,transparent 100%)" }}>
       <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--panel)", border: "1px solid var(--bdr)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{icon}</div>
       <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--paper2)" }}>{title}</span>
-      {value && <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'DM Mono',monospace", color: "var(--gold)" }}>{value}</span>}
+      {value && <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'Inter_28pt-Regular',sans-serif", color: "var(--gold)" }}>{value}</span>}
     </div>
   )
 }
@@ -50,9 +50,9 @@ export default function Step5Generate({ state, update }: Props) {
   return (
     <div>
       <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--bdr)" }}>
-        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 05 / 05</span>
+        <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 05 / 05</span>
         <h1 className="serif" style={{ fontSize: 30, fontWeight: 300, lineHeight: 1.15, color: "var(--paper)" }}>
-          Review &amp; <em style={{ color: "var(--gold)", fontStyle: "italic" }}>generate</em>
+          Review &amp; <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>generate</span>
         </h1>
         <p style={{ marginTop: 6, fontSize: 12, color: "var(--steel)", fontWeight: 300, lineHeight: 1.7 }}>
           Preview 2 images first at no extra cost — approve before committing credits.
@@ -64,7 +64,7 @@ export default function Step5Generate({ state, update }: Props) {
           <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--bdr2)", display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,rgba(255,255,255,.025) 0%,transparent 100%)" }}>
             <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--panel)", border: "1px solid var(--bdr)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>✨</div>
             <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--paper2)" }}>What to expect</span>
-            <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'DM Mono',monospace", color: "var(--steel2)" }}>⏱ ~45 seconds</span>
+            <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'Inter_28pt-Regular',sans-serif", color: "var(--steel2)" }}>⏱ ~45 seconds</span>
           </div>
           <div style={{ padding: 14 }}>
             <div style={{ display: "flex", gap: 10 }}>
@@ -91,7 +91,7 @@ export default function Step5Generate({ state, update }: Props) {
                     }} />
                     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: .08, fontSize: 24 }}>🕶️</div>
                   </div>
-                  <span style={{ fontSize: 8.5, color: "var(--steel2)", fontFamily: "'DM Mono',monospace", textAlign: "center", letterSpacing: ".04em" }}>{item.caption}</span>
+                  <span style={{ fontSize: 8.5, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", textAlign: "center", letterSpacing: ".04em" }}>{item.caption}</span>
                 </div>
               ))}
             </div>
@@ -111,7 +111,7 @@ export default function Step5Generate({ state, update }: Props) {
                   {state.intent === intent.label && <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "var(--gold)" }} />}
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 7 }}>
                     <span style={{ fontSize: 17, lineHeight: 1 }}>{intent.emoji}</span>
-                    <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 600, color: state.intent === intent.label ? "var(--gold)" : "var(--steel)", background: state.intent === intent.label ? "var(--gold-dim2)" : "var(--panel2)", border: `1px solid ${state.intent === intent.label ? "var(--gold-bdr)" : "var(--bdr)"}`, borderRadius: 5, padding: "2px 7px" }}>{intent.qty} visuals</span>
+                    <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, fontWeight: 600, color: state.intent === intent.label ? "var(--gold)" : "var(--steel)", background: state.intent === intent.label ? "var(--gold-dim2)" : "var(--panel2)", border: `1px solid ${state.intent === intent.label ? "var(--gold-bdr)" : "var(--bdr)"}`, borderRadius: 5, padding: "2px 7px" }}>{intent.qty} visuals</span>
                   </div>
                   <div style={{ fontSize: 11.5, fontWeight: 700, color: state.intent === intent.label ? "var(--gold)" : "var(--paper2)", marginBottom: 3 }}>{intent.label}</div>
                   <div style={{ fontSize: 9.5, color: "var(--steel)", lineHeight: 1.5, marginBottom: 7 }}>{intent.desc}</div>
@@ -131,20 +131,20 @@ export default function Step5Generate({ state, update }: Props) {
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <input type="number" min={1} max={150} value={state.qty}
                   onChange={e => update({ qty: parseInt(e.target.value) || 1, intent: "Custom" })}
-                  style={{ width: 48, background: "var(--panel2)", border: "1px solid var(--bdr)", borderRadius: 6, color: "var(--paper)", fontFamily: "'DM Mono',monospace", fontSize: 15, fontWeight: 600, outline: "none", textAlign: "center", padding: "4px 5px" }} />
+                  style={{ width: 48, background: "var(--panel2)", border: "1px solid var(--bdr)", borderRadius: 6, color: "var(--paper)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 15, fontWeight: 600, outline: "none", textAlign: "center", padding: "4px 5px" }} />
                 <span style={{ fontSize: 10, color: "var(--steel)" }}>visuals</span>
               </div>
             </div>
 
             {/* Fine-tune qty */}
             <div style={{ marginTop: 0 }}>
-              <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 9, display: "block" }}>
+              <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 9, display: "block" }}>
                 Fine-tune — <span style={{ color: "var(--gold)" }}>{state.qty} visuals</span>
               </span>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {QTY_BTNS.map(n => (
                   <div key={n} onClick={() => update({ qty: n, intent: INTENTS.find(i => i.qty === n)?.label ?? state.intent })}
-                    style={{ flex: 1, minWidth: 36, padding: "8px 4px", borderRadius: 7, border: `1px solid ${state.qty === n ? "var(--gold-bdr2)" : "var(--bdr)"}`, background: state.qty === n ? "var(--gold-dim2)" : "var(--panel)", color: state.qty === n ? "var(--gold)" : "var(--steel2)", fontSize: 11, fontFamily: "'DM Mono',monospace", cursor: "pointer", textAlign: "center", transition: "all .17s" }}>
+                    style={{ flex: 1, minWidth: 36, padding: "8px 4px", borderRadius: 7, border: `1px solid ${state.qty === n ? "var(--gold-bdr2)" : "var(--bdr)"}`, background: state.qty === n ? "var(--gold-dim2)" : "var(--panel)", color: state.qty === n ? "var(--gold)" : "var(--steel2)", fontSize: 11, fontFamily: "'Inter_28pt-Regular',sans-serif", cursor: "pointer", textAlign: "center", transition: "all .17s" }}>
                     {n}
                   </div>
                 ))}
@@ -158,7 +158,7 @@ export default function Step5Generate({ state, update }: Props) {
         <Card>
           <CardHeader icon="📐" title="Output Format" value={`${state.format} ${state.formatLabel}`} />
           <div style={{ padding: 14 }}>
-            <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 10, display: "block" }}>Aspect Ratio</span>
+            <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 10, display: "block" }}>Aspect Ratio</span>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
               {FORMATS.map(f => (
                 <div key={f.ratio} onClick={() => update({ format: f.ratio, formatLabel: f.name })}
@@ -167,7 +167,7 @@ export default function Step5Generate({ state, update }: Props) {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 7, height: 28 }}>
                     <div style={{ width: f.w, height: f.h, background: state.format === f.ratio ? "rgba(201,168,76,.28)" : "rgba(201,168,76,.15)", border: `1.5px solid ${state.format === f.ratio ? "var(--gold)" : "var(--gold-bdr)"}`, borderRadius: 3 }} />
                   </div>
-                  <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 14, fontWeight: 600, color: state.format === f.ratio ? "var(--gold)" : "var(--paper)", display: "block", lineHeight: 1, marginBottom: 4 }}>{f.ratio}</span>
+                  <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 14, fontWeight: 600, color: state.format === f.ratio ? "var(--gold)" : "var(--paper)", display: "block", lineHeight: 1, marginBottom: 4 }}>{f.ratio}</span>
                   <span style={{ fontSize: 8.5, color: state.format === f.ratio ? "var(--gold)" : "var(--steel2)", display: "block", marginBottom: 2, opacity: state.format === f.ratio ? .8 : 1 }}>{f.name}</span>
                   <span style={{ fontSize: 8, color: "var(--steel2)", display: "block", lineHeight: 1.3 }}>{f.use}</span>
                 </div>
@@ -181,16 +181,16 @@ export default function Step5Generate({ state, update }: Props) {
         <Card>
           <CardHeader icon="🔬" title="Output Quality" value={`${state.quality} · ${state.qualityLabel}`} />
           <div style={{ padding: 14 }}>
-            <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 10, display: "block" }}>Resolution</span>
+            <span style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 10, display: "block" }}>Resolution</span>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 12 }}>
               {QUALITIES.map(q => (
                 <div key={q.res} onClick={() => update({ quality: q.res, qualityLabel: q.label, qualityMult: QUALITY_MULTS[q.res] })}
                   style={{ border: `1.5px solid ${state.quality === q.res ? "var(--gold)" : "var(--bdr)"}`, borderRadius: 10, background: state.quality === q.res ? "rgba(201,168,76,.07)" : "var(--panel)", cursor: "pointer", paddingTop: q.badge ? 22 : 12, paddingBottom: 12, paddingLeft: 8, paddingRight: 8, transition: "all .18s", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                  {q.badge && <div style={{ position: "absolute", top: 5, right: 5, fontSize: 7, fontFamily: "'DM Mono',monospace", padding: "1px 5px", borderRadius: 8, fontWeight: 600, letterSpacing: ".06em", background: "rgba(201,168,76,.15)", color: q.badgeColor, border: `1px solid ${q.badgeColor}40` }}>{q.badge}</div>}
-                  <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 18, fontWeight: 700, color: state.quality === q.res ? "var(--gold)" : "var(--paper)", display: "block", lineHeight: 1, marginBottom: 3 }}>{q.res}</span>
-                  <span style={{ fontSize: 8, color: "var(--steel2)", display: "block", marginBottom: 2, fontFamily: "'DM Mono',monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.px}</span>
+                  {q.badge && <div style={{ position: "absolute", top: 5, right: 5, fontSize: 7, fontFamily: "'Inter_28pt-Regular',sans-serif", padding: "1px 5px", borderRadius: 8, fontWeight: 600, letterSpacing: ".06em", background: "rgba(201,168,76,.15)", color: q.badgeColor, border: `1px solid ${q.badgeColor}40` }}>{q.badge}</div>}
+                  <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 18, fontWeight: 700, color: state.quality === q.res ? "var(--gold)" : "var(--paper)", display: "block", lineHeight: 1, marginBottom: 3 }}>{q.res}</span>
+                  <span style={{ fontSize: 8, color: "var(--steel2)", display: "block", marginBottom: 2, fontFamily: "'Inter_28pt-Regular',sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.px}</span>
                   <span style={{ fontSize: 9, color: "var(--steel2)", display: "block" }}>{q.label}</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 5, fontSize: 9, fontFamily: "'DM Mono',monospace", color: state.quality === q.res ? "var(--gold)" : "var(--steel2)", opacity: state.quality === q.res ? .8 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 5, fontSize: 9, fontFamily: "'Inter_28pt-Regular',sans-serif", color: state.quality === q.res ? "var(--gold)" : "var(--steel2)", opacity: state.quality === q.res ? .8 : 1 }}>
                     {q.mult} credit
                   </div>
                 </div>
@@ -228,17 +228,17 @@ export default function Step5Generate({ state, update }: Props) {
 
             {/* Credit calc */}
             <div style={{ background: "var(--ink2)", border: "1px solid var(--bdr)", borderRadius: 9, padding: "12px 14px", marginTop: 12 }}>
-              <div style={{ fontSize: 8, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 9 }}>Credit Calculation</div>
+              <div style={{ fontSize: 8, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 9 }}>Credit Calculation</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "var(--steel)", padding: "2.5px 0" }}>
                 <span>Visuals requested</span><span>× {state.qty}{qualityMult > 1 ? ` × ${qualityMult} (quality)` : ""}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "var(--steel)", padding: "2.5px 0" }}>
                 <span>Models · Backgrounds</span><span>× 1 · × 1</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--paper)", fontWeight: 600, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--bdr)", fontFamily: "'DM Mono',monospace" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--paper)", fontWeight: 600, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--bdr)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>
                 <span>Total credits</span><span style={{ color: "var(--gold)" }}>{totalCost}</span>
               </div>
-              <div style={{ fontSize: 9.5, color: "var(--steel2)", marginTop: 5, textAlign: "right", fontFamily: "'DM Mono',monospace" }}>{remaining} remaining after this shoot</div>
+              <div style={{ fontSize: 9.5, color: "var(--steel2)", marginTop: 5, textAlign: "right", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{remaining} remaining after this shoot</div>
               <div style={{ height: 3, background: "var(--panel)", borderRadius: 2, marginTop: 10, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.max(5, remaining / TOTAL_CREDITS * 100)}%`, background: "linear-gradient(90deg,var(--accent2),var(--gold))", borderRadius: 2, transition: "width .4s" }} />
               </div>
@@ -248,8 +248,8 @@ export default function Step5Generate({ state, update }: Props) {
       </BlurFade>
 
       <BlurFade delay={0.25}>
-        <div style={{ background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)", borderLeft: "2px solid var(--gold)", borderRadius: 8, padding: "9px 12px", fontSize: 11, color: "var(--paper2)", lineHeight: 1.65 }}>
-          <strong style={{ color: "var(--gold)" }}>Preview guarantee:</strong> 2 preview images first at no extra cost. Approve before the full run — credits are never burned on bad output.
+        <div style={{ background: "rgba(201,168,76,.03)", border: "none", borderLeft: "1px solid rgba(201,168,76,.35)", borderRadius: 3, padding: "4px 10px", fontSize: 10, color: "var(--steel2)", lineHeight: 1.55 }}>
+          <strong style={{ color: "rgba(201,168,76,.7)", fontWeight: 500 }}>Preview guarantee:</strong> 2 preview images first at no extra cost. Approve before the full run — credits are never burned on bad output.
         </div>
       </BlurFade>
     </div>

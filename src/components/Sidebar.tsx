@@ -1,5 +1,6 @@
 import type { ViziiaState } from "@/types"
 import { TOTAL_CREDITS } from "@/types"
+import { motion, AnimatePresence } from "motion/react"
 
 interface Props {
   state: ViziiaState
@@ -11,17 +12,30 @@ interface Props {
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <div style={{ fontSize: 8.5, fontWeight: 600, letterSpacing: ".18em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 7 }}>
+    <div style={{
+      fontSize: 8.5, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase",
+      color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif",
+      paddingBottom: 6,
+    }}>
       {children}
     </div>
   )
 }
 
-function Row({ label, value, gold, unset }: { label: string; value: string; gold?: boolean; unset?: boolean }) {
+function Row({ label, value, gold, unset, last }: { label: string; value: string; gold?: boolean; unset?: boolean; last?: boolean }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid var(--bdr2)" }}>
-      <span style={{ fontSize: 11, color: "var(--steel2)" }}>{label}</span>
-      <span style={{ fontSize: 11, color: unset ? "var(--steel2)" : gold ? "var(--gold)" : "var(--paper2)", fontWeight: unset ? 400 : 500, opacity: unset ? .4 : 1 }}>
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      padding: "6px 0",
+      borderBottom: last ? "none" : "1px solid rgba(255,255,255,.03)",
+    }}>
+      <span style={{ fontSize: 11, color: "var(--steel)", fontWeight: 400, letterSpacing: ".01em" }}>{label}</span>
+      <span style={{
+        fontSize: 11, letterSpacing: ".01em",
+        color: unset ? "var(--steel2)" : gold ? "var(--gold)" : "var(--paper2)",
+        fontWeight: unset ? 400 : 500,
+        opacity: unset ? .35 : 1,
+      }}>
         {unset ? "—" : value}
       </span>
     </div>
@@ -47,105 +61,143 @@ export default function Sidebar({ state, modelBg, totalCost, remaining }: Props)
     <aside
       style={{
         display: "flex",
-        background: "var(--ink2)", borderLeft: "1px solid var(--bdr)",
-        padding: "20px 18px 88px", flexDirection: "column", gap: 16,
-        position: "fixed", top: 104, right: 0, width: 460,
-        height: "calc(100vh - 104px)", overflowY: "auto",
+        background: "var(--ink2)",
+        borderLeft: "1px solid rgba(255,255,255,.04)",
+        padding: "20px 22px 100px",
+        flexDirection: "column",
+        position: "fixed", top: 140, right: 0, width: 460,
+        height: "calc(100vh - 140px)",
+        overflow: "hidden",
         zIndex: 100,
       }}
       className="sidebar-desktop"
     >
-      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 300, color: "var(--paper)", letterSpacing: ".03em" }}>
-        Configuration
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 18, flexShrink: 0,
+      }}>
+        <span style={{
+          fontFamily: "'Inter_24pt-Medium',sans-serif",
+          fontSize: 12.5, fontWeight: 700, color: "var(--paper)",
+          letterSpacing: ".04em",
+        }}>
+          Configuration
+        </span>
+        <span style={{
+          fontSize: 9, letterSpacing: ".08em", textTransform: "uppercase",
+          color: "var(--steel2)", opacity: .5,
+        }}>
+          {state.step + 1} / 5
+        </span>
       </div>
 
-      {/* Model card — placeholder until step 2 reached */}
-      {modelConfigured ? (
-        <div style={{ background: "var(--panel)", border: "1px solid var(--bdr)", borderRadius: "var(--r-lg)", overflow: "hidden" }}>
-          <div style={{ height: 130, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: modelBg, transition: "background .5s" }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,transparent 40%,rgba(0,0,0,.55))" }} />
-            <span style={{ fontSize: 58, opacity: .5, position: "relative", zIndex: 1 }}>👩</span>
-          </div>
-          <div style={{ padding: "11px 14px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 10px", background: "var(--gold-dim)", border: "1px solid var(--gold-bdr)", borderRadius: 12, fontSize: 10, color: "var(--gold)", fontFamily: "'DM Mono',monospace", marginBottom: 5 }}>
-              {modelLabel}
+      {/* Model card */}
+      <div style={{ flexShrink: 0, marginBottom: 20 }}>
+        {modelConfigured ? (
+          <div style={{
+            background: "rgba(255,255,255,.02)",
+            border: "1px solid rgba(255,255,255,.04)",
+            borderRadius: 10, overflow: "hidden",
+          }}>
+            <div style={{
+              height: 56, display: "flex", alignItems: "center", justifyContent: "center",
+              position: "relative", overflow: "hidden", background: modelBg, transition: "background .5s",
+            }}>
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,transparent 20%,rgba(0,0,0,.5))" }} />
+              <span style={{ fontSize: 30, opacity: .4, position: "relative", zIndex: 1 }}>👩</span>
             </div>
-            <div style={{ fontSize: 10.5, color: "var(--steel2)" }}>{modelDetail}</div>
+            <div style={{ padding: "9px 12px 10px" }}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={modelLabel}
+                  initial={{ opacity: 0, y: 5, filter: "blur(2px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -3, filter: "blur(1px)" }}
+                  transition={{ duration: .32, ease: [.22, 1, .36, 1] }}
+                >
+                  <div style={{
+                    display: "inline-flex", alignItems: "center",
+                    padding: "2px 8px", background: "var(--gold-dim)",
+                    border: "1px solid var(--gold-bdr)", borderRadius: 8,
+                    fontSize: 9.5, color: "var(--gold)",
+                    marginBottom: 3, letterSpacing: ".02em",
+                  }}>
+                    {modelLabel}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={modelDetail}
+                  initial={{ opacity: 0, y: 4, filter: "blur(2px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -2, filter: "blur(1px)" }}
+                  transition={{ duration: .3, delay: .06, ease: [.22, 1, .36, 1] }}
+                  style={{ fontSize: 10, color: "var(--steel)", letterSpacing: ".01em" }}
+                >
+                  {modelDetail}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div style={{
-          border: "1.5px dashed rgba(255,255,255,.08)", borderRadius: "var(--r-lg)",
-          padding: "22px 16px 18px", display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 6, textAlign: "center",
-          background: "rgba(255,255,255,.015)",
-        }}>
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ opacity: .2 }}>
-            <circle cx="16" cy="12" r="5.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M4 28c0-6.627 5.373-12 12-12s12 5.373 12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-          </svg>
-          <div style={{ fontSize: 12, color: "var(--steel2)", fontWeight: 400 }}>No model selected yet</div>
-          <div style={{ fontSize: 10, color: "var(--steel2)", opacity: .45, fontFamily: "'DM Mono',monospace", letterSpacing: ".04em" }}>Configure in Step 2 →</div>
-        </div>
-      )}
-
-      {/* Frames */}
-      <section style={{ display: "flex", flexDirection: "column" }}>
-        <SectionLabel>Frames</SectionLabel>
-        <Row label="Uploaded" value="3 frames ✓" gold={framesUploaded} unset={!framesUploaded} />
-      </section>
-
-      {/* Camera */}
-      <section style={{ display: "flex", flexDirection: "column" }}>
-        <SectionLabel>Camera</SectionLabel>
-        <Row label="Shot style"  value={state.shotStyle}            gold   unset={!cameraConfigured} />
-        <Row label="Lens"        value={`${state.lens}mm Portrait`} gold   unset={!cameraConfigured} />
-        <Row label="Lighting"    value={state.lighting}                     unset={!cameraConfigured} />
-        <Row label="Film grain"  value={state.grainLabel}                   unset={!cameraConfigured} />
-      </section>
-
-      {/* Scene */}
-      <section style={{ display: "flex", flexDirection: "column" }}>
-        <SectionLabel>Scene</SectionLabel>
-        <Row label="Mood"        value={state.mood}                                       gold unset={!sceneConfigured} />
-        <Row label="Background"  value={state.useCustomBg ? "Custom" : state.background}      unset={!sceneConfigured} />
-      </section>
-
-      {/* Expected Results */}
-      {modelConfigured && (
-        <section style={{ display: "flex", flexDirection: "column" }}>
-          <SectionLabel>Expected Results</SectionLabel>
-          <div style={{ display: "flex", gap: 8 }}>
-            {[0, 1].map(i => (
-              <div key={i} style={{
-                flex: 1, height: 80, borderRadius: 8,
-                background: `linear-gradient(${135 + i * 30}deg, var(--panel3), var(--panel2))`,
-                border: "1px solid var(--bdr)",
-                overflow: "hidden", position: "relative",
-              }}>
-                <div style={{
-                  position: "absolute", top: 0, left: "-100%", width: "60%", height: "100%",
-                  background: "linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent)",
-                  animation: "shimmer 2.8s ease infinite",
-                  animationDelay: `${i * 0.5}s`,
-                }} />
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: .08, fontSize: 22 }}>🕶️</div>
-              </div>
-            ))}
+        ) : (
+          <div style={{
+            border: "1px dashed rgba(255,255,255,.06)", borderRadius: 10,
+            padding: "16px 14px", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 5, textAlign: "center",
+            background: "rgba(255,255,255,.01)",
+          }}>
+            <svg width="24" height="24" viewBox="0 0 32 32" fill="none" style={{ opacity: .12 }}>
+              <circle cx="16" cy="12" r="5.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              <path d="M4 28c0-6.627 5.373-12 12-12s12 5.373 12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            </svg>
+            <div style={{ fontSize: 11, color: "var(--steel2)", fontWeight: 400 }}>No model selected yet</div>
+            <div style={{ fontSize: 9, color: "var(--steel2)", opacity: .4, letterSpacing: ".03em" }}>Configure in Step 2 →</div>
           </div>
-          <div style={{ fontSize: 9, color: "var(--steel2)", textAlign: "center", marginTop: 7, fontFamily: "'DM Mono',monospace", letterSpacing: ".04em" }}>
-            Your AI photos will look like this
-          </div>
+        )}
+      </div>
+
+      {/* Config sections */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, flexShrink: 0 }}>
+        <section>
+          <SectionLabel>Frames</SectionLabel>
+          <Row label="Uploaded" value="3 frames ✓" gold={framesUploaded} unset={!framesUploaded} last />
         </section>
-      )}
 
-      {/* Credits */}
-      <section style={{ display: "flex", flexDirection: "column", marginTop: "auto" }}>
+        <section>
+          <SectionLabel>Camera</SectionLabel>
+          <Row label="Shot style"  value={state.shotStyle}            gold   unset={!cameraConfigured} />
+          <Row label="Lens"        value={`${state.lens}mm Portrait`} gold   unset={!cameraConfigured} />
+          <Row label="Lighting"    value={state.lighting}                     unset={!cameraConfigured} />
+          <Row label="Film grain"  value={state.grainLabel}                   unset={!cameraConfigured} last />
+        </section>
+
+        <section>
+          <SectionLabel>Scene</SectionLabel>
+          <Row label="Mood"        value={state.mood}                                       gold unset={!sceneConfigured} />
+          <Row label="Background"  value={state.useCustomBg ? "Custom" : state.background}      unset={!sceneConfigured} last />
+        </section>
+      </div>
+
+      {/* Credits — anchored to bottom */}
+      <section style={{ marginTop: "auto", flexShrink: 0 }}>
+        <div style={{
+          height: 1, background: "rgba(255,255,255,.05)",
+          marginBottom: 14,
+        }} />
         <SectionLabel>Credits</SectionLabel>
         <Row label="This shoot"     value={`${totalCost} credits`} gold />
-        <Row label="Remaining after" value={String(remaining)} />
-        <div style={{ height: 3, background: "var(--panel)", borderRadius: 2, marginTop: 8, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${barWidth}%`, background: "linear-gradient(90deg,var(--accent2),var(--gold))", borderRadius: 2, transition: "width .4s" }} />
+        <Row label="Remaining after" value={String(remaining)} last />
+        <div style={{
+          height: 2, background: "rgba(255,255,255,.04)", borderRadius: 1,
+          marginTop: 12, overflow: "hidden",
+        }}>
+          <div style={{
+            height: "100%", width: `${barWidth}%`,
+            background: "linear-gradient(90deg,var(--accent2),var(--gold))",
+            borderRadius: 1, transition: "width .4s ease",
+          }} />
         </div>
       </section>
     </aside>

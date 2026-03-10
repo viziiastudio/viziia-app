@@ -1,4 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Outfit:wght@200;300;400;500;600;700&display=swap');
+@font-face {
+  font-family: 'Inter_28pt-Regular';
+  src: url('./assets/fonts/Inter-Variable.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  font-variation-settings: 'opsz' 28;
+}
+@font-face {
+  font-family: 'Inter_24pt-Medium';
+  src: url('./assets/fonts/Inter-Variable.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  font-variation-settings: 'opsz' 24;
+}
 
 @import "tailwindcss";
 
@@ -28,6 +43,24 @@
 
   --color-background: var(--panel2);
   --color-border: var(--gold-bdr);
+
+  /* Radius tokens (4px base) */
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-xl: 14px;
+
+  /* Spacing tokens */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Transition tokens */
+  --transition-fast: 150ms ease;
+  --transition-normal: 220ms ease;
+  --transition-slow: 300ms ease;
 }
 
 @theme {
@@ -48,16 +81,31 @@
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-*:focus, *:focus-visible { outline: none !important; }
-/* Prevent browser focus box-shadow rings on interactive divs (iOS Safari fix).
-   No !important — inline box-shadow (e.g. active swatch ring) still takes precedence. */
+/* Accessibility: visible focus for keyboard users; minimal for mouse */
+*:focus { outline: none; }
+*:focus:not(:focus-visible) { outline: none; }
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+/* Prevent browser focus box-shadow rings on interactive divs (iOS Safari fix) */
 div:focus, div:focus-visible { box-shadow: none; }
 html { scroll-behavior: smooth; background: #07090d; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 body {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Inter_28pt-Regular', sans-serif;
   background: var(--ink);
   color: var(--paper);
-  min-height: 100svh;
+  min-height: 100dvh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
@@ -80,8 +128,9 @@ input[type=range] { -webkit-appearance: none; appearance: none; background: tran
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 0; height: 0; }
 input[type=range]::-moz-range-thumb { width: 0; height: 0; border: none; background: transparent; }
 
-.serif { font-family: 'Cormorant Garamond', serif; }
-.mono  { font-family: 'DM Mono', monospace; }
+.serif   { font-family: 'Inter_28pt-Regular', sans-serif; }
+.heading { font-family: 'Inter_24pt-Medium', sans-serif; }
+.mono    { font-family: 'Inter_28pt-Regular', sans-serif; }
 
 @keyframes orbDrift { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(28px,36px) scale(1.12); } }
 @keyframes dotPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.5); } }
@@ -122,62 +171,182 @@ input[type=range]::-moz-range-thumb { width: 0; height: 0; border: none; backgro
 /* Responsive sidebar */
 @media (max-width: 767px) {
   .sidebar-desktop { display: none !important; }
-  .main-scroll { margin-right: 0 !important; padding-bottom: 106px !important; }
+  .main-scroll {
+    margin-right: 0 !important;
+    padding-bottom: max(106px, calc(72px + env(safe-area-inset-bottom))) !important;
+  }
 }
 @media (min-width: 768px) {
   .main-scroll { margin-right: 460px; }
 }
 
-/* Success screen thumbnails */
-.thumb-featured { height: 65vh; }
-.thumb-side     { height: 46vh; }
+/* Page-level scroll (non-studio pages) — no sidebar offset */
+.page-scroll { margin-right: 0 !important; }
+
+/* Folder scroll — hide scrollbar */
+.folder-scroll::-webkit-scrollbar { display: none; }
+.folder-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Visuals grid responsive */
 @media (max-width: 520px) {
-  .thumb-featured { height: 42vh; }
-  .thumb-side     { height: 30vh; }
+  .visuals-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+}
+@media (min-width: 521px) and (max-width: 768px) {
+  .visuals-grid { grid-template-columns: repeat(3, 1fr) !important; }
 }
 
-/* Step rail — mobile */
+/* Success screen thumbnails — aspect ratio set inline to avoid stretch */
+.thumb-featured,
+.thumb-side { min-height: 0; }
+
+/* Step rail — mobile: ensure labels stay visible, no clipping */
 @media (max-width: 520px) {
-  .step-connector { width: 12px !important; margin: 0 2px !important; }
-  .step-label { font-size: 8px !important; letter-spacing: .03em !important; }
-  .step-item { padding: 0 1px !important; gap: 3px !important; }
+  .step-label {
+    font-size: 8px !important;
+    letter-spacing: .04em !important;
+    line-height: 1.2 !important;
+    padding-top: 2px !important;
+  }
+  .step-item { gap: 4px !important; }
 }
 @media (max-width: 380px) {
   .step-label { display: none !important; }
-  .step-connector { width: 10px !important; margin: 0 2px !important; }
 }
 
-/* Bottom nav — base positioning */
+/* Generation overlay — full-bleed on mobile Safari, no bottom gap.
+   Strategy: set height via -webkit-fill-available as primary for Safari,
+   then let @supports dvh override for modern browsers. */
+.generation-overlay {
+  /* Safari fallback — fills the visual viewport including when toolbar hides */
+  height: -webkit-fill-available;
+  min-height: -webkit-fill-available;
+}
+@supports (height: 100dvh) {
+  .generation-overlay {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+}
+
+/* Success screen — scrollable when content overflows, centered when short */
+.success-screen {
+  min-height: -webkit-fill-available;
+}
+@supports (min-height: 100dvh) {
+  .success-screen { min-height: 100dvh; }
+}
+/* Desktop: success-screen-content uses margin:auto for centering;
+   when content overflows it collapses to top so badge is always reachable. */
+
+/* "Start over" button in header */
+.start-over-btn {
+  transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease,
+              transform 0.18s cubic-bezier(.4,0,.2,1), box-shadow 0.22s ease;
+  will-change: transform, filter;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.start-over-btn:hover {
+  color: var(--paper) !important;
+  border-color: rgba(255,255,255,.1) !important;
+  background: rgba(255,255,255,.05) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.02);
+}
+.start-over-btn:active {
+  transform: scale(0.95);
+  background: rgba(255,255,255,.07) !important;
+}
+.start-over-btn--confirm {
+  animation: confirmPulse 1.6s ease infinite;
+}
+.start-over-btn--confirm:hover {
+  color: var(--gold) !important;
+  border-color: var(--gold-bdr2) !important;
+  background: rgba(201,168,76,.12) !important;
+  box-shadow: 0 0 0 3px rgba(201,168,76,.06);
+}
+@keyframes confirmPulse {
+  0%, 100% { border-color: var(--gold-bdr); }
+  50% { border-color: var(--gold-bdr2); }
+}
+
+/* Mobile menu trigger */
+.mobile-menu-trigger:hover {
+  background: rgba(255,255,255,.05) !important;
+  border-color: rgba(255,255,255,.08) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.015);
+}
+.mobile-menu-trigger:active {
+  transform: scale(0.93);
+  background: rgba(255,255,255,.07) !important;
+}
+
+/* Waitlist button hover */
+.waitlist-btn:hover {
+  background: rgba(201,168,76,.08) !important;
+  border-color: rgba(201,168,76,.22) !important;
+  box-shadow: 0 0 0 3px rgba(201,168,76,.04);
+}
+.waitlist-btn:active {
+  transform: scale(0.96);
+  background: rgba(201,168,76,.1) !important;
+}
+
+/* Bottom bar — smoother button transitions, subtle hover/press */
+.bottom-nav button {
+  transition: color 0.22s ease, background-color 0.22s ease, border-color 0.22s ease, opacity 0.22s ease, transform 0.2s ease;
+}
+.bottom-nav button:hover {
+  opacity: 0.92;
+}
+.bottom-nav button:active {
+  opacity: 0.88;
+  transform: scale(0.99);
+}
+.bottom-nav .nav-btn-generate:hover { opacity: 0.96; }
+.bottom-nav .nav-btn-generate:active { opacity: 0.92; transform: scale(0.99); }
+
+
+/* Bottom nav — base positioning, safe-area aware */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  padding: 10px 28px 14px;
+  padding: 12px 28px max(14px, env(safe-area-inset-bottom));
+  padding-left: max(28px, env(safe-area-inset-left));
+  padding-right: max(28px, env(safe-area-inset-right));
   border-top: 1px solid var(--bdr);
+  box-sizing: border-box;
+  gap: 16px;
 }
 
-/* Bottom nav — mobile floating card */
+/* Bottom nav — mobile: flush at screen bottom, safe-area via internal padding only */
 @media (max-width: 768px) {
   .bottom-nav {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    border-radius: 20px;
-    border-top: none;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--bdr);
     background: #0d1117;
-    box-shadow: 0 -4px 24px rgba(0,0,0,.5);
+    box-shadow: 0 -4px 24px rgba(0,0,0,.4);
+    /* safe-area inset handled via padding so background extends flush to screen edge */
+    padding: 10px 16px env(safe-area-inset-bottom);
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 }
 @media (max-width: 520px) {
-  .bottom-nav { padding: 10px 14px 14px !important; gap: 8px !important; }
+  .bottom-nav { padding: 10px 14px max(10px, env(safe-area-inset-bottom)) !important; gap: 10px !important; }
   .nav-btn-next { padding: 10px 16px !important; font-size: 11px !important; letter-spacing: .02em !important; }
   .nav-btn-generate { padding: 10px 12px !important; font-size: 11px !important; }
   .nav-btn-preview { padding: 9px 10px !important; font-size: 10px !important; }
 }
 @media (max-width: 380px) {
-  .bottom-nav { padding: 8px 12px 12px !important; gap: 6px !important; }
+  .bottom-nav { padding: 8px 12px max(8px, env(safe-area-inset-bottom)) !important; gap: 8px !important; }
   .nav-btn-next { padding: 9px 12px !important; font-size: 10px !important; }
   .nav-btn-generate { padding: 9px 10px !important; font-size: 10px !important; }
   .nav-btn-preview { display: none !important; }

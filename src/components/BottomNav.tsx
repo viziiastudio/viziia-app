@@ -1,5 +1,5 @@
-import { motion } from "motion/react"
-import { STEP_LABELS } from "@/types"
+import { motion, AnimatePresence } from "motion/react"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
 
 interface Props {
   step: number
@@ -16,98 +16,109 @@ interface Props {
 const NEXT_LABELS = ["Continue to Model →", "Camera →", "Scene →", "Review →"]
 
 export default function BottomNav({ step, qty, onBack, onNext, onGenerate, hidden }: Props) {
-  const pct = ((step + 1) / 5 * 100).toFixed(0)
-
+  const reducedMotion = useReducedMotion()
   return (
     <motion.div
         className="bottom-nav"
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: hidden ? 80 : 0, opacity: hidden ? 0 : 1 }}
-        transition={{ type: "spring", stiffness: 340, damping: 32 }}
+        transition={reducedMotion ? { duration: 0.01 } : { type: "spring", stiffness: 340, damping: 32 }}
         style={{
           background: "#080a0e",
           backdropFilter: "blur(28px) saturate(1.6)",
           WebkitBackdropFilter: "blur(28px) saturate(1.6)",
-          display: "grid",
-          gridTemplateColumns: "auto 1fr auto",
+          display: "flex",
           alignItems: "center",
-          gap: 12,
+          justifyContent: "space-between",
+          gap: 16,
           pointerEvents: hidden ? "none" : "auto",
+          paddingLeft: "max(28px, env(safe-area-inset-left))",
+          paddingRight: "max(28px, env(safe-area-inset-right))",
+          paddingBottom: "max(14px, env(safe-area-inset-bottom))",
         }}
       >
         <button
           onClick={onBack}
+          className="nav-btn-back"
           style={{
             display: "block",
+            minHeight: 44, minWidth: 44,
             padding: "10px 14px", background: "transparent",
             border: "1px solid var(--bdr)", borderRadius: "var(--r-sm)",
-            color: "var(--steel)", fontFamily: "'Outfit',sans-serif", fontSize: 11,
+            color: "var(--steel)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11,
             cursor: "pointer", whiteSpace: "nowrap",
-            transition: "all .18s",
           }}
+          aria-label="Go back"
         >
           ← Back
         </button>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, overflow: "hidden" }}>
-          <div style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'DM Mono',monospace", letterSpacing: ".06em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            Step {step + 1} of 5 — {STEP_LABELS[step]}
-          </div>
-          <div style={{ height: 2, background: "var(--bdr)", borderRadius: 2, overflow: "hidden" }}>
-            <motion.div
-              style={{ height: "100%", background: "linear-gradient(90deg,var(--accent2),var(--gold))", borderRadius: 2 }}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
-          {step === 4 ? (
-            <>
-              <button
-                onClick={() => onGenerate(true)}
-                className="nav-btn-preview"
-                style={{
-                  padding: "10px 14px", background: "transparent",
-                  border: "1px solid var(--gold-bdr)", borderRadius: "var(--r-sm)",
-                  color: "var(--gold)", fontFamily: "'Outfit',sans-serif", fontSize: 11,
-                  cursor: "pointer", whiteSpace: "nowrap", transition: "all .18s",
-                }}
+        <div style={{ display: "flex", gap: 7, alignItems: "center", position: "relative", overflow: "hidden" }}>
+          <AnimatePresence mode="wait" initial={false}>
+            {step === 4 ? (
+              <motion.div
+                key="generate-pair"
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                style={{ display: "flex", gap: 7, alignItems: "center" }}
               >
-                ⚡ Preview first
-              </button>
-              <button
-                onClick={() => onGenerate(false)}
-                className="nav-btn-generate"
-                style={{
-                  padding: "11px 24px",
-                  background: "linear-gradient(135deg,#28d468,var(--success),#18a048)",
-                  border: "none", borderRadius: "var(--r-sm)", color: "#071a0e",
-                  fontFamily: "'Outfit',sans-serif", fontSize: 13, fontWeight: 700,
-                  letterSpacing: ".04em", cursor: "pointer", whiteSpace: "nowrap",
-                  textTransform: "uppercase",
-                }}
+                <button
+                  onClick={() => onGenerate(true)}
+                  className="nav-btn-preview"
+                  style={{
+                    minHeight: 44, padding: "10px 14px", background: "transparent",
+                    border: "1px solid var(--gold-bdr)", borderRadius: "var(--r-sm)",
+                    color: "var(--gold)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11,
+                    cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                  aria-label="Preview first 2 images"
+                >
+                  ⚡ Preview first
+                </button>
+                <button
+                  onClick={() => onGenerate(false)}
+                  className="nav-btn-generate"
+                  style={{
+                    minHeight: 44, padding: "11px 24px",
+                    background: "linear-gradient(135deg,#28d468,var(--success),#18a048)",
+                    border: "none", borderRadius: "var(--r-sm)", color: "#071a0e",
+                    fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 13, fontWeight: 700,
+                    letterSpacing: ".04em", cursor: "pointer", whiteSpace: "nowrap",
+                    textTransform: "uppercase",
+                  }}
+                  aria-label={`Generate ${qty} visuals`}
+                >
+                  Generate {qty} Visuals
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`next-${step}`}
+                initial={{ opacity: 0, x: 14 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
               >
-                Generate {qty} Visuals
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={onNext}
-              className="nav-btn-next"
-              style={{
-                padding: "11px 20px",
-                background: "linear-gradient(135deg,var(--gold-hi) 0%,var(--gold) 50%,#a07030 100%)",
-                border: "none", borderRadius: "var(--r-sm)", color: "var(--ink)",
-                fontFamily: "'Outfit',sans-serif", fontSize: 12, fontWeight: 700,
-                letterSpacing: ".05em", cursor: "pointer", whiteSpace: "nowrap",
-                textTransform: "uppercase",
-              }}
-            >
-              {NEXT_LABELS[step]}
-            </button>
-          )}
+                <button
+                  onClick={onNext}
+                  className="nav-btn-next"
+                  style={{
+                    minHeight: 44, padding: "11px 20px",
+                    background: "linear-gradient(135deg,var(--gold-hi) 0%,var(--gold) 50%,#a07030 100%)",
+                    border: "none", borderRadius: "var(--r-sm)", color: "var(--ink)",
+                    fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 12, fontWeight: 700,
+                    letterSpacing: ".05em", cursor: "pointer", whiteSpace: "nowrap",
+                    textTransform: "uppercase",
+                  }}
+                  aria-label={NEXT_LABELS[step]}
+                >
+                  {NEXT_LABELS[step]}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
     </motion.div>
   )

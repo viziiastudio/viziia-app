@@ -22,7 +22,7 @@ function CardHeader({ icon, title, value }: { icon: string; title: string; value
     <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--bdr2)", display: "flex", alignItems: "center", gap: 8, background: "linear-gradient(180deg,rgba(255,255,255,.025) 0%,transparent 100%)" }}>
       <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--panel)", border: "1px solid var(--bdr)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{icon}</div>
       <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--paper2)" }}>{title}</span>
-      {value && <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'DM Mono',monospace", color: "var(--gold)" }}>{value}</span>}
+      {value && <span style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: "'Inter_28pt-Regular',sans-serif", color: "var(--gold)" }}>{value}</span>}
     </div>
   )
 }
@@ -30,7 +30,7 @@ function CardHeader({ icon, title, value }: { icon: string; title: string; value
 function ParamRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid var(--bdr2)" }}>
-      <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>{label}</span>
+      <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{label}</span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>{children}</div>
     </div>
   )
@@ -74,8 +74,8 @@ function AgeSlider({ value, onChange }: { value: number; onChange: (v: number) =
   return (
     <div style={{ marginBottom: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>Age</span>
-        <span style={{ fontSize: 20, fontWeight: 300, color: "var(--gold)", fontFamily: "'Cormorant Garamond',serif", letterSpacing: "-.01em" }}>{AGE_STEPS[safeIdx]}<span style={{ fontSize: 11, marginLeft: 2, opacity: .6 }}>y</span></span>
+        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>Age</span>
+        <span style={{ fontSize: 20, fontWeight: 300, color: "var(--gold)", fontFamily: "'Inter_24pt-Medium',sans-serif", letterSpacing: "-.01em" }}>{AGE_STEPS[safeIdx]}<span style={{ fontSize: 11, marginLeft: 2, opacity: .6 }}>y</span></span>
       </div>
       <div
         style={{ position: "relative", height: 32, touchAction: "none" }}
@@ -92,7 +92,7 @@ function AgeSlider({ value, onChange }: { value: number; onChange: (v: number) =
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
         {AGE_STEPS.map((a, i) => (
-          <span key={a} style={{ fontSize: 7.5, color: i === safeIdx ? "var(--gold)" : "var(--steel2)", fontFamily: "'DM Mono',monospace", transition: "color .15s", lineHeight: 1 }}>{a}</span>
+          <span key={a} style={{ fontSize: 7.5, color: i === safeIdx ? "var(--gold)" : "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", transition: "color .15s", lineHeight: 1 }}>{a}</span>
         ))}
       </div>
     </div>
@@ -129,7 +129,7 @@ function SkinSwatch({ color, label, active, onClick }: { color: string; label: s
         boxShadow: active ? "0 0 0 2px #c9a84c" : "none",
         transition: "box-shadow .15s",
       }} />
-      <span style={{ fontSize: 7.5, color: active ? "var(--gold)" : "var(--steel2)", fontFamily: "'DM Mono',monospace", whiteSpace: "nowrap", transition: "color .15s" }}>{label}</span>
+      <span style={{ fontSize: 7.5, color: active ? "var(--gold)" : "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", whiteSpace: "nowrap", transition: "color .15s" }}>{label}</span>
     </div>
   )
 }
@@ -161,8 +161,8 @@ function BodyTypeSlider({ value, onChange }: { value: string; onChange: (v: stri
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>Body Type</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--gold)", fontFamily: "'Outfit',sans-serif" }}>{value}</span>
+        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>Body Type</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--gold)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{value}</span>
       </div>
       <div
         style={{ position: "relative", height: 32, touchAction: "none" }}
@@ -180,7 +180,7 @@ function BodyTypeSlider({ value, onChange }: { value: string; onChange: (v: stri
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
         {BODY_TYPES.map((t, i) => (
-          <span key={t} style={{ fontSize: 7.5, color: i === idx ? "var(--gold)" : "var(--steel2)", fontFamily: "'DM Mono',monospace", transition: "color .15s", cursor: "pointer" }} onClick={() => onChange(t)}>{t}</span>
+          <span key={t} style={{ fontSize: 7.5, color: i === idx ? "var(--gold)" : "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", transition: "color .15s", cursor: "pointer" }} onClick={() => onChange(t)}>{t}</span>
         ))}
       </div>
     </div>
@@ -205,7 +205,7 @@ function FaceShapeSelector({ value, onChange }: { value: string; onChange: (v: s
                 <path d={f.path} fill={active ? "rgba(201,168,76,.35)" : "rgba(255,255,255,.08)"} stroke={active ? "var(--gold)" : "rgba(255,255,255,.2)"} strokeWidth={1.5} />
               </svg>
             </div>
-            <span style={{ fontSize: 7.5, color: active ? "var(--gold)" : "var(--steel2)", fontFamily: "'DM Mono',monospace", transition: "color .15s", width: "100%", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+            <span style={{ fontSize: 7.5, color: active ? "var(--gold)" : "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", transition: "color .15s", width: "100%", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
           </div>
         )
       })}
@@ -239,13 +239,13 @@ function ModelBuilder({ state, update }: Props) {
 
         {/* Face shape */}
         <div style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr2)" }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 8 }}>Face Shape</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 8 }}>Face Shape</div>
           <FaceShapeSelector value={state.modelFaceShape} onChange={v => update({ modelFaceShape: v })} />
         </div>
 
         {/* Skin tone */}
         <div style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr2)" }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 10 }}>Skin Tone</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 10 }}>Skin Tone</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
               { label: "Very Fair", color: "#f7e8d8" },
@@ -261,8 +261,8 @@ function ModelBuilder({ state, update }: Props) {
         {/* Hair color */}
         <div style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr2)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>Hair Color</span>
-            <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "'DM Mono',monospace" }}>{state.modelHairColor}</span>
+            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>Hair Color</span>
+            <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{state.modelHairColor}</span>
           </div>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
             {[
@@ -284,7 +284,7 @@ function ModelBuilder({ state, update }: Props) {
 
         {/* Haircut type — gender-aware */}
         <div style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr2)" }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 8 }}>Haircut Style</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 8 }}>Haircut Style</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {haircutOptions.map(v => (
               <Chip key={v} label={v} active={state.modelHaircutType === v} onClick={() => update({ modelHaircutType: v })} />
@@ -295,8 +295,8 @@ function ModelBuilder({ state, update }: Props) {
         {/* Eye color */}
         <div style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr2)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>Eye Color</span>
-            <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "'DM Mono',monospace" }}>{state.modelEyeColor}</span>
+            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>Eye Color</span>
+            <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{state.modelEyeColor}</span>
           </div>
           <div style={{ display: "flex", gap: 7 }}>
             {[
@@ -317,7 +317,7 @@ function ModelBuilder({ state, update }: Props) {
 
         {/* — OUTFIT — */}
         <div style={{ padding: "10px 0", borderBottom: "1px solid var(--bdr2)" }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 8 }}>Outfit</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 8 }}>Outfit</div>
           <input
             type="text"
             placeholder="Describe the outfit…"
@@ -326,7 +326,7 @@ function ModelBuilder({ state, update }: Props) {
             style={{
               width: "100%", background: "var(--panel3)", border: "1px solid var(--bdr)",
               borderRadius: 8, padding: "9px 12px", fontSize: 11, color: "var(--paper)",
-              fontFamily: "'Outfit',sans-serif", outline: "none", marginBottom: 8,
+              fontFamily: "'Inter_28pt-Regular',sans-serif", outline: "none", marginBottom: 8,
               transition: "border-color .15s",
               boxSizing: "border-box",
             }}
@@ -345,19 +345,19 @@ function ModelBuilder({ state, update }: Props) {
 
         {/* — STYLING — */}
         <div style={{ padding: "10px 0 4px", borderBottom: "1px solid var(--bdr2)" }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 8 }}>Styling</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 8 }}>Styling</div>
 
           {/* Makeup level */}
           <div style={{ marginBottom: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 10, color: "var(--paper2)" }}>Makeup</span>
-              <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "'DM Mono',monospace" }}>{MAKEUP_LEVELS[state.modelMakeup - 1]}</span>
+              <span style={{ fontSize: 10, color: "var(--gold)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{MAKEUP_LEVELS[state.modelMakeup - 1]}</span>
             </div>
             <div style={{ display: "flex", gap: 4 }}>
               {MAKEUP_LEVELS.map((l, i) => (
                 <div key={l} onClick={() => update({ modelMakeup: i + 1 })}
                   style={{ flex: 1, height: 28, borderRadius: 6, border: `1px solid ${state.modelMakeup === i + 1 ? "var(--gold-bdr2)" : "var(--bdr)"}`, background: state.modelMakeup === i + 1 ? "var(--gold-dim2)" : "var(--panel3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .15s" }}>
-                  <span style={{ fontSize: 7.5, fontFamily: "'DM Mono',monospace", color: state.modelMakeup === i + 1 ? "var(--gold)" : "var(--steel2)", letterSpacing: ".03em" }}>{l}</span>
+                  <span style={{ fontSize: 7.5, fontFamily: "'Inter_28pt-Regular',sans-serif", color: state.modelMakeup === i + 1 ? "var(--gold)" : "var(--steel2)", letterSpacing: ".03em" }}>{l}</span>
                 </div>
               ))}
             </div>
@@ -374,10 +374,10 @@ function ModelBuilder({ state, update }: Props) {
 
         {/* — EXPRESSION & POSE — */}
         <div style={{ padding: "10px 0" }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 10 }}>Expression & Pose</div>
+          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 10 }}>Expression & Pose</div>
 
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'DM Mono',monospace", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 6 }}>Expression</div>
+            <div style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 6 }}>Expression</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {["Neutral","Soft smile","Confident","Joyful","Serene"].map(v => (
                 <Chip key={v} label={v} active={state.modelExpression === v} onClick={() => update({ modelExpression: v })} />
@@ -386,7 +386,7 @@ function ModelBuilder({ state, update }: Props) {
           </div>
 
           <div>
-            <div style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'DM Mono',monospace", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 6 }}>Pose Angle</div>
+            <div style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 6 }}>Pose Angle</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {["Front","3/4 left","3/4 right","Profile"].map(v => (
                 <Chip key={v} label={v} active={state.modelPoseAngle === v} onClick={() => update({ modelPoseAngle: v })} />
@@ -396,8 +396,8 @@ function ModelBuilder({ state, update }: Props) {
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button onClick={() => update({ modelMode: "saved" })} style={{ flex: 1, padding: "9px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--steel)", fontSize: 11, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cancel</button>
-          <button style={{ flex: 2, padding: "9px", background: "var(--gold)", border: "none", borderRadius: 8, color: "var(--ink)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Save Model</button>
+          <button onClick={() => update({ modelMode: "saved" })} style={{ flex: 1, padding: "9px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--steel)", fontSize: 11, cursor: "pointer", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>Cancel</button>
+          <button style={{ flex: 2, padding: "9px", background: "var(--gold)", border: "none", borderRadius: 8, color: "var(--ink)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>Save Model</button>
         </div>
       </div>
     </div>
@@ -410,9 +410,9 @@ export default function Step2Model({ state, update }: Props) {
   return (
     <div>
       <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--bdr)" }}>
-        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 02 / 05</span>
+        <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 02 / 05</span>
         <h1 className="serif" style={{ fontSize: 30, fontWeight: 300, lineHeight: 1.15, color: "var(--paper)" }}>
-          Choose or build a <em style={{ color: "var(--gold)", fontStyle: "italic" }}>model</em>
+          Choose or build a <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>model</span>
         </h1>
         <p style={{ marginTop: 6, fontSize: 12, color: "var(--steel)", fontWeight: 300, lineHeight: 1.7 }}>
           Select a saved model for instant reuse — or configure a new one from scratch.
@@ -465,7 +465,7 @@ export default function Step2Model({ state, update }: Props) {
                   <span style={{ fontSize: 22, marginBottom: 8, display: "block" }}>{c.icon}</span>
                   <div style={{ fontSize: 12, fontWeight: 700, color: state.modelMode === c.mode ? "var(--gold)" : "var(--paper2)", marginBottom: 3 }}>{c.title}</div>
                   <div style={{ fontSize: 10, color: "var(--steel)", lineHeight: 1.55 }}>{c.desc}</div>
-                  <div style={{ display: "inline-block", marginTop: 8, fontSize: 8, fontFamily: "'DM Mono',monospace", letterSpacing: ".07em", padding: "2px 7px", borderRadius: 10, border: `1px solid ${state.modelMode === c.mode ? "var(--gold-bdr)" : "var(--bdr)"}`, color: state.modelMode === c.mode ? "var(--gold)" : "var(--steel2)", background: state.modelMode === c.mode ? "rgba(201,168,76,.07)" : "transparent" }}>{c.tag}</div>
+                  <div style={{ display: "inline-block", marginTop: 8, fontSize: 8, fontFamily: "'Inter_28pt-Regular',sans-serif", letterSpacing: ".07em", padding: "2px 7px", borderRadius: 10, border: `1px solid ${state.modelMode === c.mode ? "var(--gold-bdr)" : "var(--bdr)"}`, color: state.modelMode === c.mode ? "var(--gold)" : "var(--steel2)", background: state.modelMode === c.mode ? "rgba(201,168,76,.07)" : "transparent" }}>{c.tag}</div>
                 </div>
               ))}
             </div>
@@ -492,7 +492,7 @@ export default function Step2Model({ state, update }: Props) {
                       <div style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, background: m.bg, position: "relative" }}>
                         {m.emoji}
                       </div>
-                      <div style={{ position: "absolute", top: 4, right: 4, fontSize: 7, fontFamily: "'DM Mono',monospace", padding: "2px 5px", borderRadius: 8, fontWeight: 600, background: m.badgeClass === "recent" ? "var(--success-d)" : "var(--gold-dim2)", color: m.badgeClass === "recent" ? "var(--success)" : "var(--gold)", border: `1px solid ${m.badgeClass === "recent" ? "rgba(34,197,94,.28)" : "var(--gold-bdr)"}` }}>
+                      <div style={{ position: "absolute", top: 4, right: 4, fontSize: 7, fontFamily: "'Inter_28pt-Regular',sans-serif", padding: "2px 5px", borderRadius: 8, fontWeight: 600, background: m.badgeClass === "recent" ? "var(--success-d)" : "var(--gold-dim2)", color: m.badgeClass === "recent" ? "var(--success)" : "var(--gold)", border: `1px solid ${m.badgeClass === "recent" ? "rgba(34,197,94,.28)" : "var(--gold-bdr)"}` }}>
                           {m.badge}
                         </div>
                       <div style={{ padding: "7px 9px", borderTop: "1px solid var(--bdr2)" }}>

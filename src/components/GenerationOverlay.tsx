@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
 
 interface Props {
   qty: number
@@ -17,6 +18,7 @@ const GEN_STAGES = [
 const CIRC = 2 * Math.PI * 35
 
 export default function GenerationOverlay({ onComplete }: Props) {
+  const reducedMotion = useReducedMotion()
   const [stageIndex, setStageIndex] = useState(0)
   const [doneStages, setDoneStages] = useState<number[]>([])
   const [finished, setFinished] = useState(false)
@@ -50,17 +52,22 @@ export default function GenerationOverlay({ onComplete }: Props) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      transition={{ duration: reducedMotion ? 0.01 : 0.2 }}
+      className="generation-overlay"
       style={{
-        position: "fixed", inset: 0, zIndex: 600,
+        position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 600,
+        height: "100dvh",
+        minHeight: "100dvh",
         background: "var(--ink)",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        boxSizing: "border-box",
       }}
     >
       {/* Ambient orbs */}
       <div style={{ position: "absolute", width: 380, height: 380, borderRadius: "50%", background: "var(--gold)", top: -80, left: -60, filter: "blur(90px)", opacity: .09, animation: "orbDrift 9s ease-in-out infinite alternate", pointerEvents: "none" }} />
       <div style={{ position: "absolute", width: 260, height: 260, borderRadius: "50%", background: "#1e4a8a", bottom: -40, right: -40, filter: "blur(90px)", opacity: .09, animation: "orbDrift 9s ease-in-out infinite alternate", animationDelay: "-4s", pointerEvents: "none" }} />
 
-      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: 320, padding: "0 24px" }}>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: 320, padding: "0 24px", paddingBottom: "env(safe-area-inset-bottom)" }}>
         {/* SVG Ring */}
         <div style={{ position: "relative", width: 78, height: 78, marginBottom: 26 }}>
           <div style={{ position: "absolute", inset: -10, borderRadius: "50%", border: "1px solid rgba(201,168,76,.12)", animation: "pulseRing 2.2s ease-out infinite" }} />
@@ -71,7 +78,7 @@ export default function GenerationOverlay({ onComplete }: Props) {
               cx="39" cy="39" r="35"
               strokeDasharray={CIRC}
               animate={{ strokeDashoffset: offset }}
-              transition={{ duration: 0.65, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ duration: reducedMotion ? 0.01 : 0.65, ease: [0.22, 1, 0.36, 1] }}
             />
           </svg>
           <AnimatePresence mode="wait">
@@ -80,7 +87,7 @@ export default function GenerationOverlay({ onComplete }: Props) {
               initial={{ opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.7 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: reducedMotion ? 0.01 : 0.2 }}
               style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}
             >
               {finished ? "✅" : stage.emoji}
@@ -95,14 +102,14 @@ export default function GenerationOverlay({ onComplete }: Props) {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.25 }}
-            style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 300, color: "var(--paper)", textAlign: "center", lineHeight: 1.2, marginBottom: 4 }}
+            transition={{ duration: reducedMotion ? 0.01 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+            style={{ fontFamily: "'Inter_24pt-Medium',sans-serif", fontSize: 24, fontWeight: 300, color: "var(--paper)", textAlign: "center", lineHeight: 1.2, marginBottom: 4 }}
           >
-            {finished ? <>Visuals <em style={{ color: "var(--gold)", fontStyle: "italic" }}>ready</em></> : <>{stage.headline} <em style={{ color: "var(--gold)", fontStyle: "italic" }}>{stage.accent}</em></>}
+            {finished ? <>Visuals <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>ready</span></> : <>{stage.headline} <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>{stage.accent}</span></>}
           </motion.div>
         </AnimatePresence>
 
-        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9.5, letterSpacing: ".14em", color: "var(--steel2)", textAlign: "center", marginBottom: 22, textTransform: "uppercase" }}>
+        <div style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9.5, letterSpacing: ".14em", color: "var(--steel2)", textAlign: "center", marginBottom: 22, textTransform: "uppercase" }}>
           {finished ? "GENERATION COMPLETE" : stage.mono}
         </div>
 
@@ -112,12 +119,12 @@ export default function GenerationOverlay({ onComplete }: Props) {
             <motion.div
               style={{ height: "100%", background: "linear-gradient(90deg,#1e4a8a,var(--gold))", borderRadius: 2 }}
               animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ duration: reducedMotion ? 0.01 : 0.7, ease: [0.22, 1, 0.36, 1] }}
             />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: "var(--gold)", letterSpacing: ".1em" }}>{pct}%</span>
-            <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, color: "var(--steel2)", letterSpacing: ".06em" }}>{finished ? "Complete" : stage.eta}</span>
+            <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, color: "var(--gold)", letterSpacing: ".1em" }}>{pct}%</span>
+            <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, color: "var(--steel2)", letterSpacing: ".06em" }}>{finished ? "Complete" : stage.eta}</span>
           </div>
         </div>
 
@@ -131,7 +138,7 @@ export default function GenerationOverlay({ onComplete }: Props) {
                 key={i}
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ delay: reducedMotion ? 0 : i * 0.05, duration: reducedMotion ? 0.01 : 0.25, ease: [0.22, 1, 0.36, 1] }}
                 style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "8px 11px",
                   borderRadius: 8, border: `1px solid ${isDone ? "rgba(34,197,94,.14)" : isCurrent ? "var(--gold-bdr)" : "transparent"}`,
@@ -146,7 +153,7 @@ export default function GenerationOverlay({ onComplete }: Props) {
                   animation: isCurrent ? "dotPulse .9s ease infinite" : "none",
                   transition: "all .3s",
                 }} />
-                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9.5, letterSpacing: ".05em", flex: 1, color: isDone ? "var(--success)" : isCurrent ? "var(--gold)" : "rgba(255,255,255,.2)", transition: "color .3s" }}>
+                <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9.5, letterSpacing: ".05em", flex: 1, color: isDone ? "var(--success)" : isCurrent ? "var(--gold)" : "rgba(255,255,255,.2)", transition: "color .3s" }}>
                   {s.mono.toLowerCase()}
                 </span>
                 {isDone && <span style={{ fontSize: 11, color: "var(--success)" }}>✓</span>}

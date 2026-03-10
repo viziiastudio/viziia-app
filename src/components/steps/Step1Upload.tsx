@@ -1,5 +1,7 @@
+import { useState, useCallback, useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import type { ViziiaState } from "@/types"
+import { useDeviceOrientation } from "@/hooks/useDeviceOrientation"
 
 interface Props {
   state: ViziiaState
@@ -13,8 +15,64 @@ const FRAME_SLOTS = [
   { badge: "3/4",   label: "3/4 angle",     emoji: "🕶️", extracted: true },
 ]
 
+const MOUSE_DEPTH = 2.5
+const LERP_MOUSE = 0.12
+
 export default function Step1Upload({ state, update, onNext }: Props) {
   const started = state.uploadStarted
+  const parallax = useDeviceOrientation()
+  const [reducedMotion, setReducedMotion] = useState(true)
+  const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 })
+  const mouseTargetRef = useRef({ x: 0, y: 0 })
+  const rafRef = useRef<number | null>(null)
+  const titleRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (reducedMotion) return
+    const el = titleRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = (e.clientX - cx) / rect.width
+    const dy = (e.clientY - cy) / rect.height
+    mouseTargetRef.current = {
+      x: Math.max(-1, Math.min(1, dx)) * MOUSE_DEPTH,
+      y: Math.max(-1, Math.min(1, dy)) * MOUSE_DEPTH,
+    }
+  }, [reducedMotion])
+
+  const handleMouseLeave = useCallback(() => {
+    mouseTargetRef.current = { x: 0, y: 0 }
+  }, [])
+
+  useEffect(() => {
+    if (reducedMotion) return
+    const tick = () => {
+      const { x: tx, y: ty } = mouseTargetRef.current
+      setMouseOffset(prev => ({
+        x: prev.x + (tx - prev.x) * LERP_MOUSE,
+        y: prev.y + (ty - prev.y) * LERP_MOUSE,
+      }))
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [reducedMotion])
+
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    setIsMobile(
+      window.matchMedia("(max-width: 768px)").matches ||
+      window.matchMedia("(pointer: coarse)").matches
+    )
+  }, [])
+  const depthX = isMobile ? parallax.x : mouseOffset.x
+  const depthY = isMobile ? parallax.y : mouseOffset.y
 
   return (
     <div style={{ position: "relative" }}>
@@ -30,6 +88,8 @@ export default function Step1Upload({ state, update, onNext }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.98 }}
             transition={{ duration: 0.3 }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             style={{
               display: "flex", flexDirection: "column", alignItems: "center",
               justifyContent: "center", minHeight: "68vh", textAlign: "center",
@@ -41,20 +101,42 @@ export default function Step1Upload({ state, update, onNext }: Props) {
               animate={{ opacity: 0.7, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", display: "block", marginBottom: 20 }}>
-                Step 01 / 05
+              <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", display: "block", marginBottom: 20 }}>
+                Step — Upload Frames
               </span>
             </motion.div>
 
-            <motion.h1
-              className="serif"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.05 }}
-              style={{ fontSize: 46, fontWeight: 300, lineHeight: 1.08, color: "var(--paper)", marginBottom: 14, letterSpacing: "-.01em" }}
+            <div
+              ref={titleRef}
+              style={{
+                perspective: reducedMotion ? "none" : "1000px",
+                transform: `translate3d(${depthX}px, ${depthY}px, 0)`,
+                willChange: depthX !== 0 || depthY !== 0 ? "transform" : "auto",
+              }}
             >
-              Upload your <em style={{ color: "var(--gold)", fontStyle: "italic" }}>frames</em>
-            </motion.h1>
+              <div
+                style={{
+                  transform: reducedMotion ? "none" : "translateZ(4px)",
+                  transformStyle: "preserve-3d",
+                  textShadow: reducedMotion
+                    ? "none"
+                    : "0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.05), 0 4px 8px rgba(0,0,0,.03)",
+                }}
+              >
+                <motion.h1
+                  className="serif"
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.05 }}
+                  style={{
+                    fontSize: 46, fontWeight: 300, lineHeight: 1.08, color: "var(--paper)",
+                    marginBottom: 14, letterSpacing: "-.01em",
+                  }}
+                >
+                  Upload your <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>frames</span>
+                </motion.h1>
+              </div>
+            </div>
 
             <motion.p
               initial={{ opacity: 0, y: 8 }}
@@ -74,7 +156,7 @@ export default function Step1Upload({ state, update, onNext }: Props) {
                 padding: "17px 48px",
                 background: "linear-gradient(135deg,var(--gold-hi),var(--gold),#9a7020)",
                 border: "none", borderRadius: 14, color: "var(--ink)",
-                fontFamily: "'Outfit',sans-serif", fontSize: 14, fontWeight: 700,
+                fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 14, fontWeight: 700,
                 letterSpacing: ".08em", textTransform: "uppercase", cursor: "pointer",
                 position: "relative", overflow: "hidden",
                 boxShadow: "0 10px 40px rgba(201,168,76,.28), 0 2px 8px rgba(0,0,0,.4)",
@@ -106,7 +188,7 @@ export default function Step1Upload({ state, update, onNext }: Props) {
                 border: "1px solid var(--gold-bdr2)",
                 borderRadius: 12,
                 color: "var(--gold)",
-                fontFamily: "'Outfit',sans-serif",
+                fontFamily: "'Inter_28pt-Regular',sans-serif",
                 fontSize: 12,
                 letterSpacing: ".06em",
                 cursor: "pointer",
@@ -123,7 +205,7 @@ export default function Step1Upload({ state, update, onNext }: Props) {
               style={{ display: "flex", gap: 6, alignItems: "center" }}
             >
               {["JPG", "PNG", "WEBP", "HEIC"].map(f => (
-                <span key={f} style={{ padding: "3px 8px", background: "var(--panel2)", border: "1px solid var(--bdr)", borderRadius: 12, fontSize: 8, color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>{f}</span>
+                <span key={f} style={{ padding: "3px 8px", background: "var(--panel2)", border: "1px solid var(--bdr)", borderRadius: 12, fontSize: 8, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{f}</span>
               ))}
               <span style={{ fontSize: 9, color: "var(--steel2)", marginLeft: 4 }}>accepted</span>
             </motion.div>
@@ -140,9 +222,9 @@ export default function Step1Upload({ state, update, onNext }: Props) {
             style={{ position: "relative", zIndex: 1, paddingBottom: 20 }}
           >
             <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--bdr)" }}>
-              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 01 / 05</span>
+              <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 01 / 05</span>
               <h1 className="serif" style={{ fontSize: 30, fontWeight: 300, lineHeight: 1.15, color: "var(--paper)" }}>
-                Upload your <em style={{ color: "var(--gold)", fontStyle: "italic" }}>frames</em>
+                Upload your <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>frames</span>
               </h1>
               <p style={{ marginTop: 6, fontSize: 12, color: "var(--steel)", fontWeight: 300, lineHeight: 1.7 }}>
                 Upload 3–4 photos of the physical frame. AI extracts a clean mask in ~12 seconds.
@@ -165,13 +247,13 @@ export default function Step1Upload({ state, update, onNext }: Props) {
             >
               <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at 50% 0%,rgba(201,168,76,.05) 0%,transparent 70%)" }} />
               <div style={{ fontSize: 26, marginBottom: 6, opacity: .35 }}>📸</div>
-              <div style={{ fontSize: 14, fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, color: "var(--paper)", marginBottom: 3 }}>
+              <div style={{ fontSize: 14, fontFamily: "'Inter_24pt-Medium',sans-serif", fontWeight: 300, color: "var(--paper)", marginBottom: 3 }}>
                 Drop your frame photos here
               </div>
               <div style={{ fontSize: 11, color: "var(--steel)", lineHeight: 1.65 }}>Front · Side · 3/4 angle · Detail shot</div>
               <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
                 {["JPG", "PNG", "WEBP", "HEIC"].map(f => (
-                  <span key={f} style={{ padding: "2px 7px", background: "var(--panel)", border: "1px solid var(--bdr)", borderRadius: 12, fontSize: 8, color: "var(--steel2)", fontFamily: "'DM Mono',monospace" }}>{f}</span>
+                  <span key={f} style={{ padding: "2px 7px", background: "var(--panel)", border: "1px solid var(--bdr)", borderRadius: 12, fontSize: 8, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{f}</span>
                 ))}
               </div>
             </motion.div>
@@ -200,9 +282,9 @@ export default function Step1Upload({ state, update, onNext }: Props) {
                   }}
                 >
                   <span style={{ fontSize: 20, opacity: .25 }}>{f.emoji}</span>
-                  <div style={{ position: "absolute", top: 4, right: 4, background: "var(--gold)", color: "var(--ink)", fontSize: 7, fontWeight: 700, padding: "2px 4px", borderRadius: 4, fontFamily: "'DM Mono',monospace" }}>{f.badge}</div>
+                  <div style={{ position: "absolute", top: 4, right: 4, background: "var(--gold)", color: "var(--ink)", fontSize: 7, fontWeight: 700, padding: "2px 4px", borderRadius: 4, fontFamily: "'Inter_28pt-Regular',sans-serif" }}>{f.badge}</div>
                   {f.extracted && (
-                    <div style={{ position: "absolute", bottom: 4, left: 4, right: 4, fontSize: 8, color: "var(--success)", fontFamily: "'DM Mono',monospace", textAlign: "center" }}>✓ extracted</div>
+                    <div style={{ position: "absolute", bottom: 4, left: 4, right: 4, fontSize: 8, color: "var(--success)", fontFamily: "'Inter_28pt-Regular',sans-serif", textAlign: "center" }}>✓ extracted</div>
                   )}
                 </motion.div>
               ))}

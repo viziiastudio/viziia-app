@@ -73,9 +73,9 @@ export default function Step4Scene({ state, update }: Props) {
   return (
     <div>
       <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--bdr)" }}>
-        <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 04 / 05</span>
+        <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 04 / 05</span>
         <h1 className="serif" style={{ fontSize: 30, fontWeight: 300, lineHeight: 1.15, color: "var(--paper)" }}>
-          Set the <em style={{ color: "var(--gold)", fontStyle: "italic" }}>scene</em>
+          Set the <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>scene</span>
         </h1>
         <p style={{ marginTop: 6, fontSize: 12, color: "var(--steel)", fontWeight: 300, lineHeight: 1.7 }}>
           Select a campaign mood and background. Pre-engineered lighting — no prompt writing needed.
@@ -105,7 +105,7 @@ export default function Step4Scene({ state, update }: Props) {
           <div style={{ padding: 14 }}>
             {BG_SECTIONS.map(sec => (
               <div key={sec.label} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
                   {sec.label}
                   <div style={{ flex: 1, height: 1, background: "var(--bdr2)" }} />
                 </div>
@@ -127,7 +127,7 @@ export default function Step4Scene({ state, update }: Props) {
 
             {/* Custom BG */}
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'DM Mono',monospace", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ fontSize: 8.5, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
                 Your Own
                 <div style={{ flex: 1, height: 1, background: "var(--bdr2)" }} />
               </div>
@@ -147,12 +147,12 @@ export default function Step4Scene({ state, update }: Props) {
                       onChange={e => update({ customBg: e.target.value, useCustomBg: true })}
                       placeholder="e.g. A warm Parisian café at sunset, wooden tables, soft golden light coming through the windows…"
                       rows={3}
-                      style={{ width: "100%", marginTop: 11, background: "var(--ink2)", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--paper)", fontFamily: "'Outfit',sans-serif", fontSize: 12, fontWeight: 300, outline: "none", padding: "11px 13px", resize: "none", lineHeight: 1.65, minHeight: 80, transition: "border-color .2s" }}
+                      style={{ width: "100%", marginTop: 11, background: "var(--ink2)", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--paper)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 12, fontWeight: 300, outline: "none", padding: "11px 13px", resize: "none", lineHeight: 1.65, minHeight: 80, transition: "border-color .2s" }}
                       onFocus={e => (e.target.style.borderColor = "var(--gold-bdr2)")}
                       onBlur={e => (e.target.style.borderColor = "var(--bdr)")}
                     />
                     <div style={{ marginTop: 10 }}>
-                      <div style={{ fontSize: 8.5, fontFamily: "'DM Mono',monospace", letterSpacing: ".1em", color: "var(--steel2)", textTransform: "uppercase", marginBottom: 7 }}>Quick examples — tap to use</div>
+                      <div style={{ fontSize: 8.5, fontFamily: "'Inter_28pt-Regular',sans-serif", letterSpacing: ".1em", color: "var(--steel2)", textTransform: "uppercase", marginBottom: 7 }}>Quick examples — tap to use</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                         {PROMPT_EXAMPLES.map(p => (
                           <div key={p.label} onClick={() => update({ customBg: p.text, useCustomBg: true })}
@@ -185,7 +185,7 @@ export default function Step4Scene({ state, update }: Props) {
               { label: "Light Color", colors: ["#fff","#fff5e0","#e0f0ff","#c9a84c","#7a3a8a"], key: "lightColor" as const },
             ].map(row => (
               <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'DM Mono',monospace", width: 66, flexShrink: 0 }}>{row.label}</span>
+                <span style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", width: 66, flexShrink: 0 }}>{row.label}</span>
                 <div style={{ display: "flex", gap: 5 }}>
                   {row.colors.map(c => (
                     <div key={c} onClick={() => update({ [row.key]: c })}

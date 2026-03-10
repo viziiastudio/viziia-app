@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "motion/react"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
 import Header from "@/components/Header"
 import StepRail from "@/components/StepRail"
 import Sidebar from "@/components/Sidebar"
@@ -11,7 +12,11 @@ import Step2Model from "@/components/steps/Step2Model"
 import Step3Camera from "@/components/steps/Step3Camera"
 import Step4Scene from "@/components/steps/Step4Scene"
 import Step5Generate from "@/components/steps/Step5Generate"
-import type { ViziiaState } from "@/types"
+import MyVisuals from "@/components/pages/MyVisuals"
+import MyPlan from "@/components/pages/MyPlan"
+import HelpPage from "@/components/pages/HelpPage"
+import AffiliatePage from "@/components/pages/AffiliatePage"
+import type { ViziiaState, AppPage } from "@/types"
 import { TOTAL_CREDITS, MOOD_GRADIENTS, QUALITY_MULTS } from "@/types"
 
 
@@ -72,6 +77,8 @@ const defaultState: ViziiaState = {
 }
 
 export default function App() {
+  const reducedMotion = useReducedMotion()
+  const [page, setPage] = useState<AppPage>("studio")
   const [state, setState] = useState<ViziiaState>(defaultState)
   const [savedState, setSavedState] = useState<ViziiaState | null>(null)
   const [showRestoreBanner, setShowRestoreBanner] = useState(false)
@@ -81,19 +88,31 @@ export default function App() {
     setState(prev => ({ ...prev, ...patch }))
   }, [])
 
+  const scrollToTop = useCallback(() => {
+    document.getElementById("mainArea")?.scrollTo({ top: 0, behavior: "instant" })
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" })
+  }, [])
+
+  const STEP_TRANSITION_MS = 220
+
   const nextStep = () => {
     setState(prev => {
       const next = Math.min(prev.step + 1, 4)
       return { ...prev, step: next, maxStep: Math.max(prev.maxStep, next) }
     })
+    setTimeout(scrollToTop, STEP_TRANSITION_MS)
   }
-  const prevStep = () => setState(prev => ({
-    ...prev,
-    step: Math.max(prev.step - 1, 0),
-    uploadStarted: prev.step === 0 ? false : prev.uploadStarted,
-  }))
+  const prevStep = () => {
+    setState(prev => ({
+      ...prev,
+      step: Math.max(prev.step - 1, 0),
+      uploadStarted: prev.step === 0 ? false : prev.uploadStarted,
+    }))
+    setTimeout(scrollToTop, STEP_TRANSITION_MS)
+  }
   const goStep = (n: number) => {
     setState(prev => n <= prev.maxStep ? { ...prev, step: n } : prev)
+    setTimeout(scrollToTop, STEP_TRANSITION_MS)
   }
 
   const runGenerate = (previewOnly: boolean) => {
@@ -102,7 +121,16 @@ export default function App() {
   const onGenerationComplete = () => {
     update({ generating: false, generated: true })
   }
-  const resetAll = () => setState(defaultState)
+
+  const [returnToStart, setReturnToStart] = useState(false)
+  const handleStartOver = useCallback(() => {
+    setReturnToStart(true)
+  }, [])
+
+  // Scroll to top on page navigation
+  useEffect(() => {
+    scrollToTop()
+  }, [page, scrollToTop])
 
   // Mount: check localStorage for prior session
   useEffect(() => {
@@ -148,81 +176,136 @@ export default function App() {
   const modelBg = MOOD_GRADIENTS[state.mood] || state.modelBg
   const qualityMult = QUALITY_MULTS[state.quality] ?? 1
 
+  const isStudio = page === "studio"
+
+  const PAGE_COMPONENTS: Record<Exclude<AppPage, "studio">, React.ReactNode> = {
+    visuals: <MyVisuals />,
+    plan: <MyPlan />,
+    help: <HelpPage />,
+    affiliate: <AffiliatePage />,
+  }
+
   return (
-    <div style={{ minHeight: "100svh", width: "100%", background: "var(--ink)" }}>
-      <Header totalCredits={TOTAL_CREDITS} step={state.step} onReset={resetAll} />
-      <StepRail currentStep={state.step} maxStep={state.maxStep} goStep={goStep} />
+    <div style={{ minHeight: "100dvh", width: "100%", background: "var(--ink)" }}>
+      <Header totalCredits={TOTAL_CREDITS} step={state.step} onReset={handleStartOver} page={page} onNavigate={setPage} />
 
-      {/* Progress bar */}
-      <div style={{ position: "fixed", top: 104, left: 0, right: 0, height: 2, zIndex: 99, background: "rgba(255,255,255,.04)" }}>
-        <div style={{ height: "100%", width: `${(state.step + 1) * 20}%`, background: "#c9a84c", transition: "width 0.4s ease", borderRadius: "0 2px 2px 0" }} />
-      </div>
+      {isStudio && (
+        <StepRail currentStep={state.step} maxStep={state.maxStep} goStep={goStep} />
+      )}
 
-      <div style={{ display: "flex", flexDirection: "row", minHeight: "100svh" }}>
-        {/* MAIN AREA */}
+      <div style={{ display: "flex", flexDirection: "row", minHeight: "100dvh" }}>
         <main
           id="mainArea"
           style={{
             flex: 1,
-            padding: "14px 28px 100px",
-            marginTop: "104px",
-            maxHeight: "calc(100vh - 104px)",
+            padding: isStudio
+              ? "20px 24px max(100px, calc(72px + env(safe-area-inset-bottom)))"
+              : "24px 24px max(100px, calc(72px + env(safe-area-inset-bottom)))",
+            paddingLeft: "max(24px, env(safe-area-inset-left))",
+            paddingRight: "max(24px, env(safe-area-inset-right))",
+            marginTop: isStudio ? "140px" : "56px",
+            maxHeight: isStudio ? "calc(100dvh - 140px)" : "calc(100dvh - 56px)",
             overflowY: "auto",
             overflowX: "hidden",
             boxSizing: "border-box",
           }}
-          className="main-scroll"
+          className={isStudio ? "main-scroll" : "page-scroll"}
         >
-          {showRestoreBanner && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              gap: 10, padding: "9px 14px", marginBottom: 14,
-              background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)",
-              borderLeft: "2px solid var(--gold)", borderRadius: 9,
-              fontSize: 11, color: "var(--paper2)",
-            }}>
-              <span>Continue where you left off?</span>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                <button onClick={handleContinueSaved} style={{ padding: "4px 12px", background: "var(--gold)", border: "none", borderRadius: 6, color: "var(--ink)", fontFamily: "'Outfit',sans-serif", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Continue</button>
-                <button onClick={handleStartFresh} style={{ padding: "4px 10px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 6, color: "var(--steel)", fontFamily: "'Outfit',sans-serif", fontSize: 10, cursor: "pointer" }}>Start Fresh</button>
-                <button onClick={() => setShowRestoreBanner(false)} style={{ padding: "4px 8px", background: "transparent", border: "none", color: "var(--steel2)", fontSize: 12, cursor: "pointer", lineHeight: 1 }}>✕</button>
-              </div>
-            </div>
+          {isStudio ? (
+            <>
+              <AnimatePresence>
+                {state.step === 0 && showRestoreBanner && (
+                  <motion.div
+                    key="restore-banner"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ marginBottom: 14 }}
+                  >
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      gap: 10, padding: "9px 14px",
+                      background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)",
+                      borderLeft: "2px solid var(--gold)", borderRadius: 9,
+                      fontSize: 11, color: "var(--paper2)",
+                    }}>
+                      <span>Continue where you left off?</span>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+                        <button onClick={handleContinueSaved} style={{ minHeight: 36, padding: "8px 14px", background: "var(--gold)", border: "none", borderRadius: 8, color: "var(--ink)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Continue</button>
+                        <button onClick={handleStartFresh} style={{ minHeight: 36, padding: "8px 12px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--steel)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, cursor: "pointer" }}>Start Fresh</button>
+                        <button onClick={() => setShowRestoreBanner(false)} style={{ minWidth: 36, minHeight: 36, padding: 6, background: "transparent", border: "none", color: "var(--steel2)", fontSize: 14, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Dismiss">✕</button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {returnToStart ? (
+                <motion.div
+                  key="exiting"
+                  initial={false}
+                  animate={{ opacity: 0, y: 10, scale: 0.98 }}
+                  transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  onAnimationComplete={() => {
+                    setState(defaultState)
+                    setReturnToStart(false)
+                  }}
+                >
+                  {STEPS[state.step]}
+                </motion.div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={state.step}
+                    initial={{ opacity: 0, x: state.step === 0 ? -24 : 18 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -18 }}
+                    transition={{ duration: reducedMotion ? 0.01 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {STEPS[state.step]}
+                  </motion.div>
+                </AnimatePresence>
+              )}
+            </>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={page}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: reducedMotion ? 0.01 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {PAGE_COMPONENTS[page as Exclude<AppPage, "studio">]}
+              </motion.div>
+            </AnimatePresence>
           )}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={state.step}
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-            >
-              {STEPS[state.step]}
-            </motion.div>
-          </AnimatePresence>
         </main>
 
-        {/* SIDEBAR */}
-        <Sidebar
-          state={state}
-          modelBg={modelBg}
-          totalCredits={TOTAL_CREDITS}
-          totalCost={state.qty * qualityMult}
-          remaining={remaining}
-        />
+        {isStudio && (
+          <Sidebar
+            state={state}
+            modelBg={modelBg}
+            totalCredits={TOTAL_CREDITS}
+            totalCost={state.qty * qualityMult}
+            remaining={remaining}
+          />
+        )}
       </div>
 
-      <BottomNav
-        step={state.step}
-        qty={state.qty}
-        qualityMult={qualityMult}
-        onBack={prevStep}
-        onNext={nextStep}
-        onGenerate={runGenerate}
-        totalCredits={TOTAL_CREDITS}
-        totalCost={state.qty * qualityMult}
-        hidden={state.step === 0 && !state.uploadStarted}
-      />
+      {isStudio && !state.generating && !state.generated && (
+        <BottomNav
+          step={state.step}
+          qty={state.qty}
+          qualityMult={qualityMult}
+          onBack={prevStep}
+          onNext={nextStep}
+          onGenerate={runGenerate}
+          totalCredits={TOTAL_CREDITS}
+          totalCost={state.qty * qualityMult}
+          hidden={state.step === 0 && !state.uploadStarted}
+        />
+      )}
 
       {state.generating && (
         <GenerationOverlay
@@ -232,12 +315,28 @@ export default function App() {
       )}
 
       {state.generated && !state.generating && (
-        <SuccessScreen
-          qty={state.qty}
-          previewMode={state.previewMode}
-          onReset={resetAll}
-          onApprove={() => runGenerate(false)}
-        />
+        <motion.div
+          initial={false}
+          animate={returnToStart ? { opacity: 0, y: 10 } : { opacity: 1, y: 0 }}
+          transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+          onAnimationComplete={() => {
+            if (returnToStart) {
+              setState(defaultState)
+              setReturnToStart(false)
+            }
+          }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 500,
+            pointerEvents: returnToStart ? "none" : "auto",
+          }}
+        >
+          <SuccessScreen
+            qty={state.qty}
+            previewMode={state.previewMode}
+            onReset={handleStartOver}
+            onApprove={() => runGenerate(false)}
+          />
+        </motion.div>
       )}
     </div>
   )

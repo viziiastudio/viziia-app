@@ -1,3 +1,5 @@
+export type AppPage = "studio" | "visuals" | "plan" | "help" | "affiliate"
+
 export interface ViziiaState {
   step: number
   maxStep: number
