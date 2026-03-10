@@ -11,3 +11,4 @@ export default defineConfig({
     },
   },
 })
+// add to build options
