@@ -98,20 +98,33 @@ export default function App() {
   const nextStep = () => {
     setState(prev => {
       const next = Math.min(prev.step + 1, 4)
+      prevStepRef.current = prev.step
+      stepDirectionRef.current = 1
       return { ...prev, step: next, maxStep: Math.max(prev.maxStep, next) }
     })
     setTimeout(scrollToTop, STEP_TRANSITION_MS)
   }
   const prevStep = () => {
-    setState(prev => ({
-      ...prev,
-      step: Math.max(prev.step - 1, 0),
-      uploadStarted: prev.step === 0 ? false : prev.uploadStarted,
-    }))
+    setState(prev => {
+      prevStepRef.current = prev.step
+      stepDirectionRef.current = -1
+      return {
+        ...prev,
+        step: Math.max(prev.step - 1, 0),
+        uploadStarted: prev.step === 0 ? false : prev.uploadStarted,
+      }
+    })
     setTimeout(scrollToTop, STEP_TRANSITION_MS)
   }
   const goStep = (n: number) => {
-    setState(prev => n <= prev.maxStep ? { ...prev, step: n } : prev)
+    setState(prev => {
+      if (n <= prev.maxStep) {
+        prevStepRef.current = prev.step
+        stepDirectionRef.current = n > prev.step ? 1 : -1
+        return { ...prev, step: n }
+      }
+      return prev
+    })
     setTimeout(scrollToTop, STEP_TRANSITION_MS)
   }
 
@@ -123,6 +136,8 @@ export default function App() {
   }
 
   const [returnToStart, setReturnToStart] = useState(false)
+  const prevStepRef = useRef(0)
+  const stepDirectionRef = useRef<1 | -1>(1)
   const handleStartOver = useCallback(() => {
     setReturnToStart(true)
   }, [])
@@ -198,9 +213,8 @@ export default function App() {
           id="mainArea"
           style={{
             flex: 1,
-            padding: isStudio
-              ? "20px 24px max(100px, calc(72px + env(safe-area-inset-bottom)))"
-              : "24px 24px max(100px, calc(72px + env(safe-area-inset-bottom)))",
+            paddingTop: isStudio ? "20px" : "24px",
+            paddingBottom: "max(100px, calc(72px + env(safe-area-inset-bottom)))",
             paddingLeft: "max(24px, env(safe-area-inset-left))",
             paddingRight: "max(24px, env(safe-area-inset-right))",
             marginTop: isStudio ? "140px" : "56px",
@@ -208,78 +222,91 @@ export default function App() {
             overflowY: "auto",
             overflowX: "hidden",
             boxSizing: "border-box",
+            transition: "margin-top 0.22s ease, max-height 0.22s ease, padding-top 0.22s ease",
           }}
           className={isStudio ? "main-scroll" : "page-scroll"}
         >
-          {isStudio ? (
-            <>
-              <AnimatePresence>
-                {state.step === 0 && showRestoreBanner && (
-                  <motion.div
-                    key="restore-banner"
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    style={{ marginBottom: 14 }}
-                  >
-                    <div style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      gap: 10, padding: "9px 14px",
-                      background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)",
-                      borderLeft: "2px solid var(--gold)", borderRadius: 9,
-                      fontSize: 11, color: "var(--paper2)",
-                    }}>
-                      <span>Continue where you left off?</span>
-                      <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
-                        <button onClick={handleContinueSaved} style={{ minHeight: 36, padding: "8px 14px", background: "var(--gold)", border: "none", borderRadius: 8, color: "var(--ink)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Continue</button>
-                        <button onClick={handleStartFresh} style={{ minHeight: 36, padding: "8px 12px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--steel)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, cursor: "pointer" }}>Start Fresh</button>
-                        <button onClick={() => setShowRestoreBanner(false)} style={{ minWidth: 36, minHeight: 36, padding: 6, background: "transparent", border: "none", color: "var(--steel2)", fontSize: 14, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Dismiss">✕</button>
+          <AnimatePresence mode="wait" custom={stepDirectionRef.current}>
+            {isStudio ? (
+              <motion.div
+                key="studio"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reducedMotion ? 0.01 : 0.18, ease: "easeOut" }}
+              >
+                <AnimatePresence>
+                  {state.step === 0 && showRestoreBanner && (
+                    <motion.div
+                      key="restore-banner"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      style={{ marginBottom: 14 }}
+                    >
+                      <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        gap: 10, padding: "9px 14px",
+                        background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)",
+                        borderLeft: "2px solid var(--gold)", borderRadius: 9,
+                        fontSize: 11, color: "var(--paper2)",
+                      }}>
+                        <span>Continue where you left off?</span>
+                        <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+                          <button onClick={handleContinueSaved} style={{ minHeight: 36, padding: "8px 14px", background: "var(--gold)", border: "none", borderRadius: 8, color: "var(--ink)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Continue</button>
+                          <button onClick={handleStartFresh} style={{ minHeight: 36, padding: "8px 12px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--steel)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, cursor: "pointer" }}>Start Fresh</button>
+                          <button onClick={() => setShowRestoreBanner(false)} style={{ minWidth: 36, minHeight: 36, padding: 6, background: "transparent", border: "none", color: "var(--steel2)", fontSize: 14, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Dismiss">✕</button>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              {returnToStart ? (
-                <motion.div
-                  key="exiting"
-                  initial={false}
-                  animate={{ opacity: 0, y: 10, scale: 0.98 }}
-                  transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-                  onAnimationComplete={() => {
-                    setState(defaultState)
-                    setReturnToStart(false)
-                  }}
-                >
-                  {STEPS[state.step]}
-                </motion.div>
-              ) : (
-                <AnimatePresence mode="wait">
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {returnToStart ? (
                   <motion.div
-                    key={state.step}
-                    initial={{ opacity: 0, x: state.step === 0 ? -24 : 18 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -18 }}
-                    transition={{ duration: reducedMotion ? 0.01 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    key="exiting"
+                    initial={false}
+                    animate={{ opacity: 0, y: 10, scale: 0.98 }}
+                    transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    onAnimationComplete={() => {
+                      setState(defaultState)
+                      setReturnToStart(false)
+                    }}
                   >
                     {STEPS[state.step]}
                   </motion.div>
-                </AnimatePresence>
-              )}
-            </>
-          ) : (
-            <AnimatePresence mode="wait">
+                ) : (
+                  <AnimatePresence mode="wait" custom={stepDirectionRef.current}>
+                    <motion.div
+                      key={state.step}
+                      custom={stepDirectionRef.current}
+                      variants={{
+                        enter: (dir: number) => ({ opacity: 0, x: dir >= 0 ? 18 : -18 }),
+                        center: { opacity: 1, x: 0 },
+                        exit: (dir: number) => ({ opacity: 0, x: dir >= 0 ? -18 : 18 }),
+                      }}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: reducedMotion ? 0.01 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      {STEPS[state.step]}
+                    </motion.div>
+                  </AnimatePresence>
+                )}
+              </motion.div>
+            ) : (
               <motion.div
                 key={page}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: reducedMotion ? 0.01 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: "easeOut" }}
               >
                 {PAGE_COMPONENTS[page as Exclude<AppPage, "studio">]}
               </motion.div>
-            </AnimatePresence>
-          )}
+            )}
+          </AnimatePresence>
         </main>
 
         {isStudio && (

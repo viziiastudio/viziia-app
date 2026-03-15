@@ -16,7 +16,7 @@ const TRACK_TOP = CIRCLE_CENTER_Y - TRACK_HEIGHT / 2 /* center line through circ
 
 export default function StepRail({ currentStep, maxStep, goStep }: Props) {
   const reducedMotion = useReducedMotion()
-  const progressPct = currentStep / (LABELS.length - 1) * 100
+  const progressPct = maxStep / (LABELS.length - 1) * 100
 
   return (
     <motion.div
@@ -70,9 +70,10 @@ export default function StepRail({ currentStep, maxStep, goStep }: Props) {
         }}>
           {LABELS.map((label, i) => {
             const isDone = i < currentStep
+            const isVisited = i <= maxStep && i !== currentStep && i > currentStep
             const isActive = i === currentStep
             const isClickable = i <= maxStep
-            const isFuture = i > currentStep
+            const isFuture = i > maxStep
 
             return (
               <motion.div
@@ -114,20 +115,22 @@ export default function StepRail({ currentStep, maxStep, goStep }: Props) {
                     fontWeight: 600,
                     background: isDone
                       ? "var(--success)"
-                      : isActive
-                        ? "var(--gold)"
-                        : "rgba(255,255,255,.03)",
-                    color: isDone || isActive ? "var(--ink)" : "var(--steel2)",
+                      : isVisited
+                        ? "rgba(34,197,94,.55)"
+                        : isActive
+                          ? "var(--gold)"
+                          : "rgba(255,255,255,.03)",
+                    color: isDone || isVisited || isActive ? "var(--ink)" : "var(--steel2)",
                     border: isFuture ? "1.5px solid rgba(255,255,255,.06)" : "none",
                     transition: "all .3s cubic-bezier(.22,1,.36,1)",
                     position: "relative",
                     boxShadow: isActive
                       ? "0 0 10px rgba(201,168,76,.18)"
-                      : isDone
+                      : isDone || isVisited
                         ? "0 0 6px rgba(34,197,94,.12)"
                         : "none",
                   }}>
-                    {isDone ? "✓" : i + 1}
+                    {isDone || isVisited ? "✓" : i + 1}
                   </div>
                 </div>
 
@@ -139,7 +142,7 @@ export default function StepRail({ currentStep, maxStep, goStep }: Props) {
                   fontFamily: "'Inter_24pt-Medium',sans-serif",
                   fontStyle: "normal",
                   fontWeight: isActive ? 600 : 500,
-                  color: isDone ? "var(--success)" : isActive ? "var(--gold)" : "var(--steel2)",
+                  color: isDone ? "var(--success)" : isVisited ? "rgba(34,197,94,.7)" : isActive ? "var(--gold)" : "var(--steel2)",
                   opacity: isFuture ? 0.35 : 1,
                   whiteSpace: "nowrap",
                   transition: "all .25s ease",

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, LayoutGroup, motion } from "motion/react"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
 import { TOTAL_CREDITS } from "@/types"
 import type { AppPage } from "@/types"
@@ -141,7 +141,7 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
         borderBottom: "1px solid var(--bdr)",
       }}>
         {/* ─── Left: Logo + Start Over + Nav ─── */}
-        <motion.div layout transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }} style={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "visible", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "visible", position: "relative", zIndex: 1 }}>
           <button
             onClick={() => onNavigate("studio")}
             style={{
@@ -160,15 +160,15 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
             />
           </button>
 
-          {/* Start Over — animated entrance; exits smoothly when navigating away */}
+          {/* Start Over — slides in from left on mount, slides left on exit */}
           <AnimatePresence>
             {page === "studio" && step > 0 && !resetting && (!pendingNav || pendingNav === "studio") && (
               <motion.button
                 key="start-over"
                 type="button"
-                initial={{ opacity: 0, y: 4, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: reducedMotion ? 0.01 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                 onClick={handleStartOver}
                 className={`start-over-btn${confirmReset ? " start-over-btn--confirm" : ""}`}
@@ -198,24 +198,33 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
             )}
           </AnimatePresence>
 
-          {/* Divider between logo area and nav */}
-          <div className="header-nav-desktop" style={{
-            width: 1, height: 18, background: "rgba(255,255,255,.05)",
-            margin: "0 14px", flexShrink: 0,
-          }} />
+          {/* Divider — layout-animated so it glides when Start Over appears/disappears */}
+          <motion.div
+            layout
+            transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="header-nav-desktop"
+            style={{ width: 1, height: 18, background: "rgba(255,255,255,.05)", margin: "0 14px", flexShrink: 0 }}
+          />
 
           {/* ─── Desktop Navigation ─── */}
           {(() => {
             const effectiveStudio = pendingNav ? pendingNav === "studio" : isStudio
             return (
-          <nav className="header-nav-desktop" aria-label="Main navigation" style={{
-            display: "flex", alignItems: "center", gap: 1,
-            padding: 4,
-            background: effectiveStudio ? "transparent" : "rgba(255,255,255,.018)",
-            border: effectiveStudio ? "1px solid transparent" : "1px solid rgba(255,255,255,.035)",
-            borderRadius: 14,
-            transition: "background .28s ease, border-color .28s ease",
-          }}>
+          <LayoutGroup id="header-nav">
+          <motion.nav
+            layout
+            transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="header-nav-desktop"
+            aria-label="Main navigation"
+            style={{
+              display: "flex", alignItems: "center", gap: 1,
+              padding: 4,
+              background: effectiveStudio ? "transparent" : "rgba(255,255,255,.018)",
+              border: effectiveStudio ? "1px solid transparent" : "1px solid rgba(255,255,255,.035)",
+              borderRadius: 14,
+              transition: "background .28s ease, border-color .28s ease",
+            }}
+          >
             {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
               const isCurrent = page === id
               const isPending = pendingNav === id
@@ -236,21 +245,21 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
                     borderRadius: 12,
                     color: isActive
                       ? (effectiveStudio ? "var(--paper)" : "var(--gold)")
-                      : isHovered ? "var(--paper2)" : "var(--steel2)",
+                      : isHovered ? "rgba(255,255,255,.75)" : "var(--steel2)",
                     fontFamily: "'Inter_28pt-Regular',sans-serif",
                     fontSize: effectiveStudio ? 10.5 : 11.5,
                     fontWeight: isActive ? 500 : 400,
                     letterSpacing: ".02em",
                     cursor: "pointer",
-                    transition: "color .24s ease, font-size .24s ease",
+                    transition: "color .18s ease, font-size .24s ease",
                     whiteSpace: "nowrap",
                     zIndex: 1,
                     transform: "none",
                   }}
                 >
                   <Icon size={effectiveStudio ? 12 : 13.5} strokeWidth={isActive ? 2 : 1.6} style={{
-                    opacity: isActive ? (effectiveStudio ? 0.7 : 1) : isHovered ? 0.6 : 0.3,
-                    transition: "opacity .22s ease",
+                    opacity: isActive ? (effectiveStudio ? 0.7 : 1) : isHovered ? 0.55 : 0.3,
+                    transition: "opacity .18s ease",
                   }} />
                   <span>{label}</span>
                   {isActive && (
@@ -264,21 +273,21 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
                         boxShadow: effectiveStudio ? "none" : "0 1px 6px rgba(201,168,76,.05)",
                         zIndex: -1,
                       }}
-                      transition={{ type: "spring", stiffness: reducedMotion ? 1000 : 320, damping: reducedMotion ? 50 : 30, mass: 0.8 }}
+                      transition={{ type: "spring", stiffness: reducedMotion ? 1000 : 340, damping: reducedMotion ? 50 : 32, mass: 0.7 }}
                     />
                   )}
                   <AnimatePresence>
                     {isHovered && !isActive && (
                       <motion.div
                         key={`hover-${id}`}
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                        transition={{ duration: reducedMotion ? 0.01 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: reducedMotion ? 0.01 : 0.15 }}
                         style={{
                           position: "absolute", inset: 0,
                           borderRadius: 12,
-                          background: "rgba(255,255,255,.03)",
+                          background: "rgba(255,255,255,.035)",
                           zIndex: -1,
                         }}
                       />
@@ -287,10 +296,11 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
                 </button>
               )
             })}
-          </nav>
+          </motion.nav>
+          </LayoutGroup>
             )
           })()}
-        </motion.div>
+        </div>
 
         {/* ─── Right: Actions (desktop) ─── */}
         <div className="header-actions-desktop" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
@@ -350,19 +360,19 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
             aria-haspopup="true"
             className="mobile-menu-trigger"
             style={{
-              width: 44, height: 44, minWidth: 44, minHeight: 44,
+              width: 38, height: 38, minWidth: 38, minHeight: 38,
               padding: 0,
-              background: mobileMenuOpen ? "rgba(201,168,76,.06)" : "rgba(255,255,255,.025)",
-              border: `1px solid ${mobileMenuOpen ? "rgba(201,168,76,.15)" : "rgba(255,255,255,.04)"}`,
-              borderRadius: 14,
-              color: mobileMenuOpen ? "var(--gold)" : "var(--paper2)",
+              background: mobileMenuOpen ? "rgba(201,168,76,.06)" : "rgba(255,255,255,.022)",
+              border: `1px solid ${mobileMenuOpen ? "rgba(201,168,76,.14)" : "rgba(255,255,255,.06)"}`,
+              borderRadius: 11,
+              color: mobileMenuOpen ? "var(--gold)" : "var(--paper3)",
               cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all .25s cubic-bezier(.22,1,.36,1)",
+              transition: "all .2s cubic-bezier(.22,1,.36,1)",
             }}
           >
             <div style={{
-              width: 16, height: 12,
+              width: 14, height: 10,
               position: "relative",
               display: "flex", flexDirection: "column",
               justifyContent: "space-between",
@@ -370,22 +380,22 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
               <span style={{
                 display: "block", width: "100%", height: 1.5, borderRadius: 1,
                 background: "currentColor",
-                transition: "transform .3s cubic-bezier(.25,.1,.25,1), opacity .22s ease",
+                transition: "transform .28s cubic-bezier(.25,.1,.25,1), opacity .2s ease",
                 transformOrigin: "center center",
-                transform: mobileMenuOpen ? "translateY(5.25px) rotate(45deg)" : "none",
+                transform: mobileMenuOpen ? "translateY(4.25px) rotate(45deg)" : "none",
               }} />
               <span style={{
                 display: "block", width: "100%", height: 1.5, borderRadius: 1,
                 background: "currentColor",
-                transition: "opacity .2s ease",
+                transition: "opacity .18s ease",
                 opacity: mobileMenuOpen ? 0 : 1,
               }} />
               <span style={{
                 display: "block", width: "100%", height: 1.5, borderRadius: 1,
                 background: "currentColor",
-                transition: "transform .3s cubic-bezier(.25,.1,.25,1), opacity .22s ease",
+                transition: "transform .28s cubic-bezier(.25,.1,.25,1), opacity .2s ease",
                 transformOrigin: "center center",
-                transform: mobileMenuOpen ? "translateY(-5.25px) rotate(-45deg)" : "none",
+                transform: mobileMenuOpen ? "translateY(-4.25px) rotate(-45deg)" : "none",
               }} />
             </div>
           </button>
@@ -396,24 +406,25 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
                 <motion.div
                   ref={menuPanelRef}
                   key="mob-dd"
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
                   animate={{
                     opacity: 1, y: 0, scale: 1,
-                    transition: { duration: reducedMotion ? 0.01 : 0.25, ease: [0.22, 1, 0.36, 1] },
+                    transition: { duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] },
                   }}
                   exit={{
-                    opacity: 0, y: -4, scale: 0.98,
-                    transition: { duration: reducedMotion ? 0.01 : 0.18, ease: [0.22, 1, 0.36, 1] },
+                    opacity: 0, y: -5, scale: 0.97,
+                    transition: { duration: reducedMotion ? 0.01 : 0.16, ease: [0.22, 1, 0.36, 1] },
                   }}
                   style={{
-                    position: "fixed", top: 64, right: "max(14px, env(safe-area-inset-right))", zIndex: 399,
-                    background: "rgba(13,16,24,.94)",
-                    backdropFilter: "blur(32px) saturate(1.5)",
-                    WebkitBackdropFilter: "blur(32px) saturate(1.5)",
-                    border: "1px solid rgba(255,255,255,.05)",
-                    borderRadius: 18, padding: "8px 8px 10px", minWidth: 240,
-                    boxShadow: "0 24px 80px rgba(0,0,0,.5), 0 6px 20px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.015) inset",
-                    display: "flex", flexDirection: "column", gap: 2,
+                    position: "fixed", top: 60, right: "max(12px, env(safe-area-inset-right))", zIndex: 399,
+                    width: "calc(100vw - 24px)", maxWidth: 255,
+                    background: "rgba(9,11,18,.97)",
+                    backdropFilter: "blur(24px) saturate(1.6)",
+                    WebkitBackdropFilter: "blur(24px) saturate(1.6)",
+                    border: "1px solid rgba(255,255,255,.07)",
+                    borderRadius: 16, padding: "6px 6px 8px",
+                    boxShadow: "0 20px 60px rgba(0,0,0,.65), 0 4px 16px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.02) inset",
+                    display: "flex", flexDirection: "column", gap: 1,
                     transformOrigin: "top right",
                   }}
                 >
@@ -425,84 +436,74 @@ export default function Header({ step, onReset, page, onNavigate }: Props) {
                       <motion.button
                         key={id}
                         type="button"
-                        initial={{ opacity: 0, y: 4 }}
+                        initial={{ opacity: 0, y: 3 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: reducedMotion ? 0.01 : 0.22, delay: reducedMotion ? 0 : 0.03 * i, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: reducedMotion ? 0.01 : 0.18, delay: reducedMotion ? 0 : 0.025 * i, ease: [0.22, 1, 0.36, 1] }}
                         onClick={() => handleNavClick(id)}
                         style={{
-                          minHeight: 44, padding: "14px 18px", textAlign: "left",
+                          minHeight: 40, padding: "10px 10px", textAlign: "left",
                           touchAction: "manipulation",
                           WebkitTapHighlightColor: "transparent",
                           background: isPending
-                            ? "rgba(201,168,76,.11)"
-                            : isHighlighted ? "rgba(201,168,76,.06)" : "transparent",
-                          border: isHighlighted ? "1px solid rgba(201,168,76,.08)" : "1px solid transparent",
-                          borderRadius: 14,
-                          color: isHighlighted ? "var(--gold)" : "var(--paper3)",
-                          fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 14, cursor: "pointer",
-                          display: "flex", alignItems: "center", gap: 12,
-                          fontWeight: isHighlighted ? 600 : 400,
+                            ? "rgba(201,168,76,.1)"
+                            : isHighlighted ? "rgba(201,168,76,.055)" : "transparent",
+                          border: isHighlighted ? "1px solid rgba(201,168,76,.1)" : "1px solid transparent",
+                          borderRadius: 11,
+                          color: isHighlighted ? "var(--gold)" : "rgba(255,255,255,.6)",
+                          fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 13, cursor: "pointer",
+                          display: "flex", alignItems: "center", gap: 10,
+                          fontWeight: isHighlighted ? 500 : 400,
                           letterSpacing: ".01em",
-                          transition: "background .22s ease, color .22s ease, border-color .22s ease",
+                          transition: "background .18s ease, color .18s ease, border-color .18s ease",
                         }}
                       >
                         <div style={{
-                          width: 30, height: 30, borderRadius: 10,
+                          width: 26, height: 26, borderRadius: 8,
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          background: isHighlighted ? "rgba(201,168,76,.08)" : "rgba(255,255,255,.025)",
+                          background: isHighlighted ? "rgba(201,168,76,.1)" : "rgba(255,255,255,.04)",
                           transition: "background .15s ease",
                           flexShrink: 0,
                         }}>
-                          <Icon size={15} strokeWidth={isHighlighted ? 2 : 1.7} style={{ opacity: isHighlighted ? 1 : 0.45, transition: "opacity .15s ease" }} />
+                          <Icon size={13} strokeWidth={isHighlighted ? 2 : 1.6} style={{ opacity: isHighlighted ? 0.9 : 0.4, transition: "opacity .15s ease" }} />
                         </div>
                         {label}
                       </motion.button>
                     )
                   })}
 
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.12, duration: 0.25, ease: "easeOut" }}
-                    style={{ height: 1, background: "rgba(255,255,255,.04)", margin: "4px 16px" }}
-                  />
+                  <div style={{ height: 1, background: "rgba(255,255,255,.05)", margin: "4px 8px" }} />
 
-                  <motion.div
-                    initial={{ opacity: 0, y: 3 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      padding: "10px 16px",
-                    }}
-                  >
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "6px 4px 2px",
+                  }}>
                     <button
                       onClick={openWaitlist}
                       style={{
-                        flex: 1, padding: "9px 14px", textAlign: "center",
-                        background: "rgba(201,168,76,.06)",
+                        flex: 1, padding: "7px 10px", textAlign: "center",
+                        background: "rgba(201,168,76,.05)",
                         border: "1px solid rgba(201,168,76,.1)",
-                        borderRadius: 12, color: "var(--gold)",
-                        fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, fontWeight: 500,
-                        cursor: "pointer", letterSpacing: ".04em",
+                        borderRadius: 9, color: "var(--gold)",
+                        fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 10, fontWeight: 500,
+                        cursor: "pointer", letterSpacing: ".05em",
                         transition: "background .15s ease, border-color .15s ease",
                       }}
                     >
                       Join Waitlist
                     </button>
                     <div style={{
-                      display: "flex", alignItems: "center", gap: 6,
-                      padding: "9px 12px",
-                      background: "rgba(255,255,255,.02)",
-                      border: "1px solid rgba(255,255,255,.035)",
-                      borderRadius: 12,
-                      fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11,
-                      color: "var(--gold)", whiteSpace: "nowrap",
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "7px 10px",
+                      background: "rgba(255,255,255,.03)",
+                      border: "1px solid rgba(255,255,255,.06)",
+                      borderRadius: 9,
+                      fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 10,
+                      color: "rgba(201,168,76,.8)", whiteSpace: "nowrap",
                     }}>
-                      <Zap size={11} style={{ opacity: 0.55 }} />
+                      <Zap size={9} style={{ opacity: 0.6 }} />
                       {TOTAL_CREDITS}
                     </div>
-                  </motion.div>
+                  </div>
                 </motion.div>
             )}
           </AnimatePresence>

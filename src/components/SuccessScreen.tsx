@@ -137,7 +137,7 @@ export default function SuccessScreen({ qty, previewMode, onReset, onApprove }: 
               )}
               {!item.featured && (
                 <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, textAlign: "center", zIndex: 2 }}>
-                  <span style={{ fontSize: 7.5, fontFamily: "'Inter_28pt-Regular',sans-serif", letterSpacing: ".1em", color: "var(--steel2)", textTransform: "uppercase" }}>Preview {i === 0 ? "1" : "3"}</span>
+                  <span style={{ fontSize: 7.5, fontFamily: "'Inter_28pt-Regular',sans-serif", letterSpacing: ".1em", color: "var(--steel2)", textTransform: "uppercase" }}>Preview {i === 0 ? "1" : "2"}</span>
                 </div>
               )}
             </motion.div>
