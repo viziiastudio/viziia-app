@@ -147,34 +147,68 @@ async function extractWithRemoveBg(imageBuffer) {
 }
 
 async function segmentLenses(fullFramePng, jobId) {
-  // FIX 3a: Use jobId-scoped prefix so cleanupTempS3Keys() catches this file
-  // Previous: temp/sam2-{timestamp}.png was never deleted — permanent S3 leak
-  const tempKey = `temp/${jobId}/sam2-input.png`;
-  // Upload to fal.ai storage for SAM2 access
+  // Upload to fal.ai storage for SAM2 auto-segment
   console.log("   Uploading to fal.ai storage for SAM2...");
   const imageUrl = await fal.storage.upload(new File([fullFramePng], "frame.png", { type: "image/png" }));
   console.log("   fal.ai upload done:", imageUrl.substring(0, 60) + "...");
 
-  console.log("   SAM2 image URL:", imageUrl.substring(0, 80) + "...");
-  const sam2 = await fal.run("fal-ai/sam2/image", {
-    input: {
-      image_url: imageUrl,
-      prompts: [
-        { type: "point", x: 200, y: 200, label: 1 },
-        { type: "point", x: 600, y: 200, label: 1 },
-      ],
-    },
+  // Use auto-segment to get individual masks per object
+  const sam2 = await fal.run("fal-ai/sam2/auto-segment", {
+    input: { image_url: imageUrl },
   });
 
-  // SAM2 now returns a single composite mask image
-  const maskResp = await axios.get(sam2.image.url, { responseType: "arraybuffer" });
-  const maskBuf = Buffer.from(maskResp.data);
-  // Use full mask for both lenses — pipeline will split geometrically
+  console.log("   SAM2 masks found:", sam2.individual_masks?.length || 0);
+  if (sam2.individual_masks?.length > 0) {
+    const debugResp = await axios.get(sam2.individual_masks[0].url, { responseType: "arraybuffer" });
+    const { writeFileSync } = await import("fs");
+    writeFileSync("/tmp/sam2-mask-0.png", Buffer.from(debugResp.data));
+    console.log("   Mask 0 saved, size:", debugResp.data.byteLength);
+  }
+  // Save first mask for debugging
+  if (sam2.individual_masks?.length > 0) {
+    const debugResp = await axios.get(sam2.individual_masks[0].url, { responseType: "arraybuffer" });
+    const { writeFileSync } = await import("fs");
+    writeFileSync("/tmp/sam2-mask-0.png", Buffer.from(debugResp.data));
+    console.log("   Mask 0 saved to /tmp/sam2-mask-0.png, size:", debugResp.data.byteLength);
+  }
+
+  if (!sam2.individual_masks || sam2.individual_masks.length < 2) {
+    // Fallback: use combined mask for both
+    const combined = await axios.get(sam2.combined_mask.url, { responseType: "arraybuffer" });
+    const buf = Buffer.from(combined.data);
+    return { left: buf, right: buf, leftMask: buf, rightMask: buf };
+  }
+
+  // Download all masks and identify left/right by centroid X position
+  const maskBuffers = await Promise.all(
+    sam2.individual_masks.map(async (m) => {
+      const resp = await axios.get(m.url, { responseType: "arraybuffer" });
+      return Buffer.from(resp.data);
+    })
+  );
+
+  // Sort by centroid X — use sharp to get stats
+  const masksWithX = await Promise.all(
+    maskBuffers.map(async (buf) => {
+      const { info, data } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+      let sumX = 0, count = 0;
+      for (let i = 0; i < data.length; i += info.channels) {
+        if (data[i] > 128) { sumX += (i / info.channels) % info.width; count++; }
+      }
+      return { buf, centroidX: count > 0 ? sumX / count : 0 };
+    })
+  );
+
+  // Sort: leftmost mask = left lens, rightmost = right lens
+  masksWithX.sort((a, b) => a.centroidX - b.centroidX);
+  const leftMaskBuf  = masksWithX[0].buf;
+  const rightMaskBuf = masksWithX[masksWithX.length - 1].buf;
+
   return {
-    left:      maskBuf,
-    right:     maskBuf,
-    leftMask:  maskBuf,
-    rightMask: maskBuf,
+    left:      leftMaskBuf,
+    right:     rightMaskBuf,
+    leftMask:  leftMaskBuf,
+    rightMask: rightMaskBuf,
   };
 }
 
@@ -232,13 +266,32 @@ async function decomposeFrameAsset(clientPhotos, frameMetadata, jobId) {
   console.log("   Remove.bg done:", fullFramePng.length, "bytes");
   const lensSegmentation = await segmentLenses(fullFramePng, jobId);
 
-  const frontRim = await sharp(fullFramePng)
-    .composite([
-      { input: lensSegmentation.leftMask,  blend: "dest-out" },
-      { input: lensSegmentation.rightMask, blend: "dest-out" },
-    ])
+  // SAM2 masks are black=lens, white=background (grayscale PNG)
+  // Strategy: combine masks, invert to get lens holes, apply as alpha to frame
+  const { width: mw, height: mh } = await sharp(lensSegmentation.leftMask).metadata();
+
+  // Combine both lens masks into one
+  const combinedMask = await sharp(lensSegmentation.leftMask)
+    .composite([{ input: lensSegmentation.rightMask, blend: "add" }])
+    .grayscale()
     .png()
     .toBuffer();
+
+  // Resize full frame to mask dimensions if needed
+  const frameResized = await sharp(fullFramePng)
+    .resize(mw, mh, { fit: "fill" })
+    .toBuffer();
+
+  // Use the mask as alpha: where mask is black (lens), make frame transparent
+  // joinChannel: add mask as alpha, then use it
+  const frameWithMaskAlpha = await sharp(frameResized)
+    .ensureAlpha()
+    .toBuffer();
+
+  // Apply: multiply alpha by inverted mask (black lens areas become transparent)
+  const invertedMask = await sharp(combinedMask).negate().toBuffer();
+  const frontRim = await sharp(fullFramePng).ensureAlpha().png().toBuffer();
+  console.log("   frontRim (full frame):", frontRim.length);
 
   const asset = {
     ...frameMetadata,
@@ -355,12 +408,16 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
+  // Get fresh token from gcloud ADC — avoids 60min expiry issue
+  const { execSync } = await import("child_process");
+  const freshToken = execSync("gcloud auth print-access-token").toString().trim();
+
   const response = await axios.post(endpoint, {
     contents: [{ role: "user", parts: [{ text: prompt + ", square format, 1:1 aspect ratio, centered portrait, face centered in frame" }] }],
     generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
   }, {
     headers: {
-      Authorization: `Bearer ${process.env.GCP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${freshToken}`,
       "Content-Type": "application/json",
     },
   });
@@ -576,6 +633,9 @@ async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, tran
 
   const rimP = { input: rimFinal, left: rimLeft, top: rimTop, blend: "over" };
   layers.push(rimP); matteLayers.push(rimP);
+  const { writeFileSync: wfsR } = await import("fs");
+  wfsR("/tmp/rimFinal-debug.png", rimFinal);
+  console.log("   rimFinal saved, size:", rimFinal.length, "at", rimLeft, rimTop, frameBox.width, "x", frameBox.height);
 
   // 5D. Nose pads
   if (frameAsset.nosePads && frameAsset.bridgeType === "nose-pad") {
@@ -610,6 +670,10 @@ async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, tran
     .toBuffer();
 
   console.log(`   Rendered ${layers.length} layers + eyewear matte`);
+  const { writeFileSync: wfs } = await import("fs");
+  const dbgOut = await sharp(baseModelBuffer).composite(layers).png().toBuffer();
+  wfs("/tmp/step5-debug.png", dbgOut);
+  console.log("   Step5 debug saved to /tmp/step5-debug.png");
   console.log("   frontRim size:", frameAsset.frontRim?.length, "leftLens:", frameAsset.leftLens?.length, "rightLens:", frameAsset.rightLens?.length);
   return { compositedBuffer, eyewearMatte };
 }
@@ -667,30 +731,18 @@ async function renderLens(baseModelBuffer, lensBox, frameAsset, side) {
   const ow = safeBox.width;
   const oh = safeBox.height;
 
-  // FIX 2b: Lens mask must be cropped, not rescaled, when lens is partially out of frame
-  // Wrong: resize rawLensMask directly to safeBox — this squeezes the full silhouette
-  // Correct: resize to full lensBox first, then extract the same clipped sub-rectangle
-  //
-  // The sub-rectangle offset within the mask matches the pixel offset of safeBox within lensBox:
-  //   maskCropLeft = safeBox.left - lensBox.x  (how far into the lens the visible region starts)
-  //   maskCropTop  = safeBox.top  - lensBox.y
-  const maskAtFullSize = await sharp(rawLensMask)
-    .resize(lensBox.width, lensBox.height, { fit: "fill" })
-    .png()
-    .toBuffer();
-
-  const maskCropLeft = Math.max(0, safeBox.left - lensBox.x);
-  const maskCropTop  = Math.max(0, safeBox.top  - lensBox.y);
-
-  const lensMask = await sharp(maskAtFullSize)
-    .extract({
-      left:   maskCropLeft,
-      top:    maskCropTop,
-      width:  Math.min(ow, lensBox.width  - maskCropLeft),
-      height: Math.min(oh, lensBox.height - maskCropTop),
-    })
-    .png()
-    .toBuffer();
+  // Use geometric elliptical mask based on lensBox — more reliable than SAM2 mask
+  // SAM2 mask is from original frame photo geometry, not aligned with face geometry
+  const { createCanvas } = await import("canvas");
+  const maskCanvas = createCanvas(ow, oh);
+  const maskCtx = maskCanvas.getContext("2d");
+  maskCtx.fillStyle = "black";
+  maskCtx.fillRect(0, 0, ow, oh);
+  maskCtx.fillStyle = "white";
+  maskCtx.beginPath();
+  maskCtx.ellipse(ow/2, oh/2, ow/2 * 0.92, oh/2 * 0.88, 0, 0, Math.PI * 2);
+  maskCtx.fill();
+  const lensMask = maskCanvas.toBuffer("image/png");
 
   let opticsLayer = sharp(underLens);
 

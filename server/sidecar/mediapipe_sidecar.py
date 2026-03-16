@@ -81,7 +81,7 @@ def get_face_geometry(req: ImageRequest):
         yaw   = math.degrees(math.atan2(r[1][0], r[0][0]))
         roll  = math.degrees(math.atan2(r[2][1], r[2][2]))
 
-    pose_ok = abs(yaw) <= 30 and abs(pitch) <= 15
+    pose_ok = abs(yaw) <= 45 and abs(pitch) <= 30
 
     return {
         "faceDetected": True,
