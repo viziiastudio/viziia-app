@@ -1,21 +1,25 @@
 {
-  "name": "server",
+  "name": "viziia-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node api/server.js",
+    "worker": "node worker/worker.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0",
+    "@fal-ai/serverless-client": "^0.15.0",
+    "@google-cloud/aiplatform": "^3.0.0",
+    "@google/genai": "^1.45.0",
     "axios": "^1.13.6",
     "bullmq": "^5.71.0",
+    "canvas": "^3.2.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "ioredis": "^5.10.0",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "sharp": "^0.33.0",
+    "uuid": "^9.0.0"
   }
 }

@@ -1,13 +1,16 @@
-const express = require('express')
-const { Queue } = require('bullmq')
+import express from 'express'
+import { Queue } from 'bullmq'
+
 const router = express.Router()
 const queue = new Queue('pipeline-jobs', {
   connection: { url: process.env.REDIS_URL }
 })
+
 router.post('/', async (req, res) => {
-  const { skuId } = req.body
-  if (!skuId) return res.status(400).json({ error: 'skuId required' })
-  const job = await queue.add('generate', { skuId, createdAt: new Date() })
-  res.json({ jobId: job.id, status: 'queued', skuId })
+  const jobData = req.body
+  if (!jobData.skuId) return res.status(400).json({ error: 'skuId required' })
+  const job = await queue.add('generate', jobData)
+  res.json({ jobId: job.id, status: 'queued', skuId: jobData.skuId })
 })
-module.exports = router
+
+export default router
