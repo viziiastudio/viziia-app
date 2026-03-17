@@ -413,7 +413,7 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
   const freshToken = execSync("gcloud auth print-access-token").toString().trim();
 
   const response = await axios.post(endpoint, {
-    contents: [{ role: "user", parts: [{ text: prompt + ", square format, 1:1 aspect ratio, centered portrait, face centered in frame" }] }],
+    contents: [{ role: "user", parts: [{ text: prompt + ", square format, 1:1 aspect ratio, perfectly frontal face, looking straight into camera, face centered in frame, symmetrical composition, head-on portrait, zero yaw zero pitch" }] }],
     generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
   }, {
     headers: {
@@ -514,7 +514,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
   // FIX: scale from face geometry, not a hardcoded 63mm assumption
   // Frame width should be ~85-95% of face width at temple level (empirical eyewear fit)
   // mmToPx derived from face width, not assumed IPD
-  const FRAME_TO_FACE_RATIO = 0.90;
+  const FRAME_TO_FACE_RATIO = 0.97;
   const frameWidthPx = Math.round(faceWidthPx * FRAME_TO_FACE_RATIO);
 
   // Derive mm-to-px from real frame dimensions + target pixel width
@@ -526,7 +526,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
   const templeLengthPx = Math.round(dimensions.templeLengthMm * mmToPx);
 
   const frameCenterX = (leftPupil.x + rightPupil.x) / 2;
-  const frameTopY    = leftPupil.y - lensHeightPx * 0.6;
+  const frameTopY    = leftPupil.y - lensHeightPx * 0.15;
   const frameLeftX   = frameCenterX - frameWidthPx / 2;
 
   const yawRad = (headPose.yaw * Math.PI) / 180;
@@ -881,12 +881,13 @@ async function refineContactZones({ compositedBuffer, eyewearMatte }, faceGeomet
     s3.send(new PutObjectCommand({ Bucket: S3_BUCKET, Key: maskKey,      Body: finalMask,        ContentType: "image/png" })),
   ]);
 
+  // Upload to fal.ai storage — S3 signed URLs blocked by fal.ai
   const [compositeUrl, maskUrl] = await Promise.all([
-    getSignedUrl(s3, new GetObjectCommand({ Bucket: S3_BUCKET, Key: compositeKey }), { expiresIn: 600 }),
-    getSignedUrl(s3, new GetObjectCommand({ Bucket: S3_BUCKET, Key: maskKey      }), { expiresIn: 600 }),
+    fal.storage.upload(new File([compositedBuffer], "composite.png", { type: "image/png" })),
+    fal.storage.upload(new File([finalMask], "mask.png", { type: "image/png" })),
   ]);
 
-  const result = await fal.subscribe("fal-ai/flux/dev/image-to-image/inpainting", {
+  const result = await fal.run("fal-ai/qwen-image-edit/inpaint", {
     input: {
       image_url:      compositeUrl,
       mask_url:       maskUrl,
@@ -1187,10 +1188,8 @@ export async function runViziiaV5Pipeline(job) {
       // Step 5: Deterministic render — returns composited image + eyewear matte
       const renderResult = await renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, transform);
 
-      // Step 6: Localized inpainting — SKIP for preview (speed)
-      const refinedBuffer = isPreview
-        ? renderResult.compositedBuffer
-        : await refineContactZones(renderResult, faceGeometry, transform, frameAsset, jobId);
+      // Step 6: Localized inpainting — always run for realism
+      const refinedBuffer = await refineContactZones(renderResult, faceGeometry, transform, frameAsset, jobId);
 
       // Step 7: QA
       const qa = await runQualityCheck(refinedBuffer, faceGeometry, transform, frameAsset);
