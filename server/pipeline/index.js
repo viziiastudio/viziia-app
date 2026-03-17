@@ -526,7 +526,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
   const templeLengthPx = Math.round(dimensions.templeLengthMm * mmToPx);
 
   const frameCenterX = (leftPupil.x + rightPupil.x) / 2;
-  const frameTopY    = leftPupil.y - lensHeightPx * 0.15;
+  const frameTopY    = leftPupil.y - lensHeightPx * 0.60;
   const frameLeftX   = frameCenterX - frameWidthPx / 2;
 
   const yawRad = (headPose.yaw * Math.PI) / 180;
@@ -1137,6 +1137,62 @@ async function cleanupTempS3Keys(jobId) {
 // MAIN ORCHESTRATOR v5
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform) {
+  console.log("→ Step 6: Gemini realistic glasses integration...");
+
+  const { execSync } = await import("child_process");
+  const freshToken = execSync("gcloud auth print-access-token").toString().trim();
+
+  const compositeB64 = compositedBuffer.toString("base64");
+  const frameB64 = frameRimBuffer.toString("base64");
+
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
+
+  const prompt = `You are given two images:
+1. A portrait photo of a person with glasses composited on their face (the placement is geometrically correct)
+2. The original eyewear product photo
+
+Your task: Make the glasses look photorealistic and naturally worn. 
+- Keep the glasses in EXACTLY the same position and size
+- Add natural shadows under the frame on the nose and cheeks
+- Add subtle skin compression where nose pads touch
+- Make temple arms disappear naturally behind the ears
+- Match the lighting of the scene
+- Do NOT move, resize, or modify the frame geometry
+- Do NOT change the face
+Output: the portrait with naturally integrated glasses`;
+
+  const response = await axios.post(endpoint, {
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: "image/png", data: compositeB64 } },
+        { inlineData: { mimeType: "image/png", data: frameB64 } },
+        { text: prompt }
+      ]
+    }],
+    generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+  }, {
+    headers: {
+      Authorization: `Bearer ${freshToken}`,
+      "Content-Type": "application/json",
+    },
+    timeout: 60000,
+  });
+
+  const parts = response.data.candidates[0].content.parts;
+  for (const part of parts) {
+    if (part.inlineData) {
+      console.log("   ✓ Gemini integration complete");
+      return Buffer.from(part.inlineData.data, "base64");
+    }
+  }
+
+  console.log("   ⚠ Gemini returned no image — using composite");
+  return compositedBuffer;
+}
+
 export async function runViziiaV5Pipeline(job) {
   // PROD: Validate job inputs before spending any credits
   validateJob(job);
@@ -1188,8 +1244,13 @@ export async function runViziiaV5Pipeline(job) {
       // Step 5: Deterministic render — returns composited image + eyewear matte
       const renderResult = await renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, transform);
 
-      // Step 6: Localized inpainting — always run for realism
-      const refinedBuffer = await refineContactZones(renderResult, faceGeometry, transform, frameAsset, jobId);
+      // Step 6: Gemini image editing — realistic glasses integration
+      const refinedBuffer = await integrateGlassesWithGemini(
+        renderResult.compositedBuffer,
+        frameAsset.frontRim,
+        faceGeometry,
+        transform
+      );
 
       // Step 7: QA
       const qa = await runQualityCheck(refinedBuffer, faceGeometry, transform, frameAsset);
