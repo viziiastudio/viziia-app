@@ -404,6 +404,7 @@ function buildModelPrompt(modelParams, cameraParams, sceneParams) {
 
 async function generateBaseModel(modelParams, cameraParams, sceneParams) {
   console.log("→ Step 2: Generating base model (gemini-3.1-flash-image-preview)...");
+  await new Promise(r => setTimeout(r, 3000)); // 3s delay to avoid rate limit
   const { prompt } = buildModelPrompt(modelParams, cameraParams, sceneParams);
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
@@ -609,7 +610,15 @@ async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, tran
   layers.push(lpL, lpR); matteLayers.push(lpL, lpR);
 
   // 5C. Front rim — FIX 3: recentre after rotation to correct for canvas expansion
-  const rimResized = await sharp(frameAsset.frontRim)
+  // Crop center 60% of frame photo to exclude temple arms before resize
+  const rimMeta = await sharp(frameAsset.frontRim).metadata();
+  const cropW = Math.round(rimMeta.width * 0.65);
+  const cropH = rimMeta.height;
+  const cropLeft = Math.round((rimMeta.width - cropW) / 2);
+  const rimCropped = await sharp(frameAsset.frontRim)
+    .extract({ left: cropLeft, top: 0, width: cropW, height: cropH })
+    .toBuffer();
+  const rimResized = await sharp(rimCropped)
     .resize(frameBox.width, frameBox.height, { fit: "fill" })
     .png().toBuffer();
 
@@ -1057,7 +1066,7 @@ async function finalizeAndDeliver(refinedBuffer, jobId, outputSettings, frameAss
   if (isPreview) {
     // Fast path: nearest-neighbor resize to 512px — no sharpening
     processedBuffer = await sharp(refinedBuffer)
-      .resize(targetPx, targetPx, { kernel: sharp.kernel.nearest, fit: "fill" })
+      .resize(targetPx, targetPx, { kernel: sharp.kernel.nearest, fit: "cover", position: "top" })
       .toBuffer();
 
   } else if (isThinFrame) {
@@ -1144,8 +1153,11 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const { execSync } = await import("child_process");
   const freshToken = execSync("gcloud auth print-access-token").toString().trim();
 
-  const compositeB64 = compositedBuffer.toString("base64");
-  const frameB64 = frameRimBuffer.toString("base64");
+  // Compress to JPEG for faster upload to Gemini
+  const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
+  const frameCompressed = await sharp(frameRimBuffer).jpeg({ quality: 85 }).toBuffer();
+  const compositeB64 = compositeCompressed.toString("base64");
+  const frameB64 = frameCompressed.toString("base64");
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
@@ -1178,7 +1190,7 @@ Output: the portrait with naturally integrated glasses`;
       Authorization: `Bearer ${freshToken}`,
       "Content-Type": "application/json",
     },
-    timeout: 60000,
+    timeout: 120000,
   });
 
   const parts = response.data.candidates[0].content.parts;
