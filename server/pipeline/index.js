@@ -407,7 +407,7 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
   await new Promise(r => setTimeout(r, 3000)); // 3s delay to avoid rate limit
   const { prompt } = buildModelPrompt(modelParams, cameraParams, sceneParams);
 
-  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3.1-flash-image-preview:generateContent`;
 
   // Get fresh token from gcloud ADC — avoids 60min expiry issue
   const { execSync } = await import("child_process");
@@ -1161,19 +1161,31 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
-  const prompt = `You are given two images:
-1. A portrait photo of a person with glasses composited on their face (the placement is geometrically correct)
-2. The original eyewear product photo
+  const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
+  const { frameBox } = transform;
 
-Your task: Make the glasses look photorealistic and naturally worn. 
-- Keep the glasses in EXACTLY the same position and size
-- Add natural shadows under the frame on the nose and cheeks
-- Add subtle skin compression where nose pads touch
-- Make temple arms disappear naturally behind the ears
-- Match the lighting of the scene
+  const prompt = `You are given two images:
+1. A portrait photo of a person with eyewear already composited at the correct position
+2. The original eyewear product photo for reference
+
+GEOMETRIC ANCHORS (do not deviate from these):
+- Left pupil: x=${Math.round(leftPupil.x)}, y=${Math.round(leftPupil.y)}
+- Right pupil: x=${Math.round(rightPupil.x)}, y=${Math.round(rightPupil.y)}
+- Frame position: x=${frameBox.x}, y=${frameBox.y}, width=${frameBox.width}px, height=${frameBox.height}px
+- Image size: ${imageSize.width}x${imageSize.height}px
+- IPD: ${Math.round(ipdPx)}px
+
+Your task: Make the glasses look photorealistic and naturally worn.
+- Keep the glasses in EXACTLY the same position — use the geometric anchors above
+- The glasses in image 1 show the exact correct placement — preserve it precisely
+- Add natural cast shadows under the frame on the nose bridge and cheeks
+- Add subtle skin indentation where nose pads contact the skin
+- Make temple arms blend naturally behind the ears and hair
+- Match the lighting and color temperature of the scene
 - Do NOT move, resize, or modify the frame geometry
-- Do NOT change the face
-Output: the portrait with naturally integrated glasses`;
+- Do NOT change the face, skin, or background
+- Output must be ${imageSize.width}x${imageSize.height}px square format
+Output: the portrait with photorealistic naturally integrated glasses`;
 
   const response = await axios.post(endpoint, {
     contents: [{
@@ -1256,7 +1268,7 @@ export async function runViziiaV5Pipeline(job) {
       // Step 5: Deterministic render — returns composited image + eyewear matte
       const renderResult = await renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, transform);
 
-      // Step 6: Gemini image editing — realistic glasses integration
+      // Step 6: Gemini realistic glasses integration with geometric anchors
       const refinedBuffer = await integrateGlassesWithGemini(
         renderResult.compositedBuffer,
         frameAsset.frontRim,
