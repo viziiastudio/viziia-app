@@ -153,12 +153,12 @@ async function segmentLenses(fullFramePng, jobId) {
   console.log("   fal.ai upload done:", imageUrl.substring(0, 60) + "...");
 
   // Use auto-segment to get individual masks per object
-  const sam2 = await fal.run("fal-ai/sam2/auto-segment", {
+  const sam2 = await fal.run("fal-ai/sam2/image", {
     input: { image_url: imageUrl },
   });
 
-  console.log("   SAM2 masks found:", sam2.individual_masks?.length || 0);
-  if (sam2.individual_masks?.length > 0) {
+  console.log("   SAM2 masks found: image mode");
+  if (false) {
     const debugResp = await axios.get(sam2.individual_masks[0].url, { responseType: "arraybuffer" });
     const { writeFileSync } = await import("fs");
     writeFileSync("/tmp/sam2-mask-0.png", Buffer.from(debugResp.data));
