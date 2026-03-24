@@ -153,7 +153,7 @@ async function segmentLenses(fullFramePng, jobId) {
   console.log("   fal.ai upload done:", imageUrl.substring(0, 60) + "...");
 
   // Use auto-segment to get individual masks per object
-  const sam2 = await fal.run("fal-ai/sam2/image", {
+  const sam2 = await fal.run("fal-ai/sam2/auto-segment", {
     input: { image_url: imageUrl },
   });
 

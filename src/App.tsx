@@ -80,8 +80,6 @@ export default function App() {
   const reducedMotion = useReducedMotion()
   const [page, setPage] = useState<AppPage>("studio")
   const [state, setState] = useState<ViziiaState>(defaultState)
-  const [savedState, setSavedState] = useState<ViziiaState | null>(null)
-  const [showRestoreBanner, setShowRestoreBanner] = useState(false)
   const isFirstSave = useRef(true)
 
   const update = useCallback((patch: Partial<ViziiaState>) => {
@@ -147,35 +145,11 @@ export default function App() {
     scrollToTop()
   }, [page, scrollToTop])
 
-  // Mount: check localStorage for prior session
-  useEffect(() => {
-    const raw = localStorage.getItem("viziia_state")
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as ViziiaState
-        if (parsed && parsed.maxStep > 0) {
-          setSavedState(parsed)
-          setShowRestoreBanner(true)
-        }
-      } catch (_) {}
-    }
-  }, [])
-
   // Auto-save on every state change (skip first render)
   useEffect(() => {
     if (isFirstSave.current) { isFirstSave.current = false; return }
     localStorage.setItem("viziia_state", JSON.stringify(state))
   }, [state])
-
-  const handleContinueSaved = () => {
-    if (savedState) setState({ ...savedState, generating: false, generated: false })
-    setShowRestoreBanner(false)
-  }
-  const handleStartFresh = () => {
-    localStorage.removeItem("viziia_state")
-    setState(defaultState)
-    setShowRestoreBanner(false)
-  }
 
   const totalCredits = state.qty * state.qualityMult
   const remaining = TOTAL_CREDITS - totalCredits
@@ -235,33 +209,6 @@ export default function App() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: reducedMotion ? 0.01 : 0.18, ease: "easeOut" }}
               >
-                <AnimatePresence>
-                  {state.step === 0 && showRestoreBanner && (
-                    <motion.div
-                      key="restore-banner"
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-                      style={{ marginBottom: 14 }}
-                    >
-                      <div style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        gap: 10, padding: "9px 14px",
-                        background: "rgba(201,168,76,.07)", border: "1px solid var(--gold-bdr)",
-                        borderLeft: "2px solid var(--gold)", borderRadius: 9,
-                        fontSize: 11, color: "var(--paper2)",
-                      }}>
-                        <span>Continue where you left off?</span>
-                        <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
-                          <button onClick={handleContinueSaved} style={{ minHeight: 36, padding: "8px 14px", background: "var(--gold)", border: "none", borderRadius: 8, color: "var(--ink)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Continue</button>
-                          <button onClick={handleStartFresh} style={{ minHeight: 36, padding: "8px 12px", background: "transparent", border: "1px solid var(--bdr)", borderRadius: 8, color: "var(--steel)", fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 11, cursor: "pointer" }}>Start Fresh</button>
-                          <button onClick={() => setShowRestoreBanner(false)} style={{ minWidth: 36, minHeight: 36, padding: 6, background: "transparent", border: "none", color: "var(--steel2)", fontSize: 14, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Dismiss">✕</button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
                 {returnToStart ? (
                   <motion.div
                     key="exiting"

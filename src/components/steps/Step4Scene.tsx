@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { ViziiaState } from "@/types"
 import { BlurFade } from "@/components/ui/blur-fade"
+import { ColorSelector } from "@/components/ui/color-selector"
 
 interface Props { state: ViziiaState; update: (p: Partial<ViziiaState>) => void }
 
@@ -180,20 +181,22 @@ export default function Step4Scene({ state, update }: Props) {
             <div style={{ background: "rgba(20,40,70,.25)", border: "1px solid rgba(30,60,100,.4)", borderLeft: "2px solid var(--accent2)", borderRadius: 8, padding: "9px 12px", fontSize: 11, color: "var(--paper2)", lineHeight: 1.65, marginBottom: 12 }}>
               Override scene colors with your brand palette — applied to background tones and atmosphere.
             </div>
-            {[
-              { label: "Background", colors: ["#f5f5f5","#e8d5b7","#c4956a","#2a4a6b","#1a0530","#000"], key: "bgColor" as const },
-              { label: "Light Color", colors: ["#fff","#fff5e0","#e0f0ff","#c9a84c","#7a3a8a"], key: "lightColor" as const },
-            ].map(row => (
-              <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", width: 66, flexShrink: 0 }}>{row.label}</span>
-                <div style={{ display: "flex", gap: 5 }}>
-                  {row.colors.map(c => (
-                    <div key={c} onClick={() => update({ [row.key]: c })}
-                      style={{ width: 22, height: 22, borderRadius: "50%", background: c, cursor: "pointer", border: `2px solid ${state[row.key] === c ? "rgba(255,255,255,.75)" : "transparent"}`, boxShadow: state[row.key] === c ? `0 0 0 2px var(--ink), 0 0 0 3.5px rgba(255,255,255,.55)` : "none", transition: "all .18s" }} />
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", width: 66, flexShrink: 0 }}>Background</span>
+              <ColorSelector
+                colors={["#f5f5f5","#e8d5b7","#c4956a","#2a4a6b","#1a0530","#000"]}
+                defaultValue={state.bgColor}
+                onColorSelect={c => update({ bgColor: c })}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 9, color: "var(--steel2)", fontFamily: "'Inter_28pt-Regular',sans-serif", width: 66, flexShrink: 0 }}>Light Color</span>
+              <ColorSelector
+                colors={["#fff","#fff5e0","#e0f0ff","#c9a84c","#7a3a8a"]}
+                defaultValue={state.lightColor}
+                onColorSelect={c => update({ lightColor: c })}
+              />
+            </div>
           </div>
         </Card>
       </BlurFade>

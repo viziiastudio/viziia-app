@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import type { ViziiaState } from "@/types"
 import { useDeviceOrientation } from "@/hooks/useDeviceOrientation"
+import { SpecialText } from "@/components/ui/special-text"
+import TrueFocus from "@/components/ui/TrueFocus"
 
 interface Props {
   state: ViziiaState
@@ -123,18 +125,16 @@ export default function Step1Upload({ state, update, onNext }: Props) {
                     : "0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.05), 0 4px 8px rgba(0,0,0,.03)",
                 }}
               >
-                <motion.h1
+                <TrueFocus
+                  sentence="Upload your frames"
+                  manualMode={false}
+                  blurAmount={5}
+                  borderColor="#3c11e8"
+                  animationDuration={0.5}
+                  pauseBetweenAnimations={1}
                   className="serif"
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.05 }}
-                  style={{
-                    fontSize: 46, fontWeight: 300, lineHeight: 1.08, color: "var(--paper)",
-                    marginBottom: 14, letterSpacing: "-.01em",
-                  }}
-                >
-                  Upload your <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>frames</span>
-                </motion.h1>
+                  style={{ fontSize: 46, fontWeight: 300, lineHeight: 1.08, color: "var(--paper)", marginBottom: 14, letterSpacing: "-.01em" }}
+                />
               </div>
             </div>
 
@@ -224,7 +224,7 @@ export default function Step1Upload({ state, update, onNext }: Props) {
             <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--bdr)" }}>
               <span style={{ fontFamily: "'Inter_28pt-Regular',sans-serif", fontSize: 9, letterSpacing: ".18em", color: "var(--gold)", textTransform: "uppercase", marginBottom: 6, display: "block", opacity: .7 }}>Step 01 / 05</span>
               <h1 className="serif" style={{ fontSize: 30, fontWeight: 300, lineHeight: 1.15, color: "var(--paper)" }}>
-                Upload your <span style={{ color: "var(--gold)", fontWeight: 700, fontFamily: "'Inter_24pt-Medium',sans-serif" }}>frames</span>
+                <SpecialText inView={true} once={true}>Upload your frames</SpecialText>
               </h1>
               <p style={{ marginTop: 6, fontSize: 12, color: "var(--steel)", fontWeight: 300, lineHeight: 1.7 }}>
                 Upload 3–4 photos of the physical frame. AI extracts a clean mask in ~12 seconds.
