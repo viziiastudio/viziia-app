@@ -2,8 +2,8 @@ import 'dotenv/config'
 import express from 'express'
 import generateRoute from './routes/generate.js'
 import jobsRoute from './routes/jobs.js'
-import { defaultLimiter, generateLimiter } from '../middleware/rateLimit.js'
-import { requireAuth } from '../middleware/auth.js'
+import { defaultLimiter, generateLimiter } from './middleware/rateLimit.js'
+import { requireAuth } from './middleware/auth.js'
 
 const app = express()
 app.use(express.json())
