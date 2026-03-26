@@ -6,8 +6,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY worker/package.json worker/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
-COPY worker/worker.js ./
-COPY pipeline ./pipeline
+COPY worker.js ./
 CMD ["node", "worker.js"]
