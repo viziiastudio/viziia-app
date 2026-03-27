@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { Worker } from 'bullmq'
-import { runViziiaV5Pipeline } from '../pipeline/index.js'
+import { runViziiaV5Pipeline } from './pipeline/index.js'
 
 const worker = new Worker('pipeline-jobs', async (job) => {
   console.log(`Processing job ${job.id}`)
