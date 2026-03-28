@@ -48,7 +48,6 @@ const REQUIRED_ENV = [
   "REMOVE_BG_API_KEY",
   "GCP_PROJECT_ID",
   "GCP_LOCATION",
-  "GCP_ACCESS_TOKEN",
   "AWS_REGION",
   "AWS_S3_BUCKET",
   // Optional but recommended:
@@ -409,9 +408,19 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3.1-flash-image-preview:generateContent`;
 
-  // Get fresh token from gcloud ADC — avoids 60min expiry issue
-  const { execSync } = await import("child_process");
-  const freshToken = execSync("gcloud auth print-access-token").toString().trim();
+  // Get token from GOOGLE_CREDENTIALS_B64 (Railway) or gcloud (local)
+  let freshToken;
+  if (process.env.GOOGLE_CREDENTIALS_B64) {
+    const { GoogleAuth } = await import("google-auth-library");
+    const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, "base64").toString());
+    const auth = new GoogleAuth({ credentials, scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+    const client = await auth.getClient();
+    const tokenResponse = await client.getAccessToken();
+    freshToken = tokenResponse.token;
+  } else {
+    const { execSync } = await import("child_process");
+    freshToken = execSync("gcloud auth print-access-token").toString().trim();
+  }
 
   const response = await axios.post(endpoint, {
     contents: [{ role: "user", parts: [{ text: prompt + ", square format, 1:1 aspect ratio, perfectly frontal face, looking straight into camera, face centered in frame, symmetrical composition, head-on portrait, zero yaw zero pitch" }] }],
