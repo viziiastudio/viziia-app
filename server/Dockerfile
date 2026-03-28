@@ -6,3 +6,4 @@ RUN npm ci
 COPY api/ ./
 COPY middleware ./middleware
 CMD ["node", "server.js"]
+
