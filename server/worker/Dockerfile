@@ -9,4 +9,5 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY worker.js ./
+COPY pipeline ./pipeline
 CMD ["node", "worker.js"]
