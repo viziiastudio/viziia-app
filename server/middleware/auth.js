@@ -20,6 +20,12 @@ function getJWKS() {
  * Returns 401 on missing/invalid token, never calls next() on failure.
  */
 export async function requireAuth(req, res, next) {
+  // BYPASS_AUTH=true for testing without Clerk
+  if (process.env.BYPASS_AUTH === 'true') {
+    req.user = { id: 'test-user', email: 'test@viziia.com' }
+    return next()
+  }
+
   const authHeader = req.headers['authorization'] ?? ''
   if (!authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing or malformed Authorization header' })
