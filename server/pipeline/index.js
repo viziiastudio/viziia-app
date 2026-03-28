@@ -45,7 +45,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const REQUIRED_ENV = [
   "FAL_API_KEY",
-  "REMOVEBG_API_KEY",
+  "REMOVE_BG_API_KEY",
   "GCP_PROJECT_ID",
   "GCP_LOCATION",
   "GCP_ACCESS_TOKEN",
@@ -139,7 +139,7 @@ async function extractWithRemoveBg(imageBuffer) {
     "https://api.remove.bg/v1.0/removebg",
     formData,
     {
-      headers: { "X-Api-Key": process.env.REMOVEBG_API_KEY },
+      headers: { "X-Api-Key": process.env.REMOVE_BG_API_KEY },
       responseType: "arraybuffer",
     }
   );
