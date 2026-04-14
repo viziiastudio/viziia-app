@@ -1160,7 +1160,18 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   console.log("→ Step 6: Gemini realistic glasses integration...");
 
   const { execSync } = await import("child_process");
-  const freshToken = execSync("gcloud auth print-access-token").toString().trim();
+  let freshToken;
+  if (process.env.GOOGLE_CREDENTIALS_B64) {
+    const { GoogleAuth } = await import("google-auth-library");
+    const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, "base64").toString());
+    const auth = new GoogleAuth({ credentials, scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+    const client = await auth.getClient();
+    const tokenResponse = await client.getAccessToken();
+    freshToken = tokenResponse.token;
+  } else {
+    const { execSync } = await import("child_process");
+    freshToken = execSync("gcloud auth print-access-token").toString().trim();
+  }
 
   // Compress to JPEG for faster upload to Gemini
   const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
