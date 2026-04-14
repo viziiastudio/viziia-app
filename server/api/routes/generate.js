@@ -32,7 +32,7 @@ const LensSchema = z.object({
 
 const FrameMetadataSchema = z.object({
   dimensions:  DimensionsSchema,
-  bridgeType:  z.string(),
+  bridgeType:  z.string().optional(),
   lens:        LensSchema.optional(),
 })
 
@@ -46,30 +46,36 @@ const ClientPhotosSchema = z.object({
 const ModelParamsSchema = z.object({
   gender:      z.string().min(1),
   ethnicity:   z.string().min(1),
-  ageRange:    z.string().min(1),
-  skinTone:    z.string().min(1),
-  eyeColor:    z.string().min(1),
-  hairStyle:   z.string().min(1),
-  hairColor:   z.string().min(1),
-  faceShape:   z.string().min(1),
-  expression:  z.string().min(1),
-  pose:        z.string().min(1),
-  bodyType:    z.string().min(1),
-  styling:     z.string().min(1),
-  accessories: z.string().min(1),
+  age:         z.string().optional(),
+  ageRange:    z.string().optional(),
+  skinTone:    z.string().optional(),
+  eyeColor:    z.string().optional(),
+  hairStyle:   z.string().optional(),
+  hairColor:   z.string().optional(),
+  faceShape:   z.string().optional(),
+  expression:  z.string().optional(),
+  pose:        z.string().optional(),
+  bodyType:    z.string().optional(),
+  styling:     z.string().optional(),
+  accessories: z.string().optional(),
 })
 
 const CameraParamsSchema = z.object({
-  focalLength:  z.union([z.literal(35), z.literal(50), z.literal(85), z.literal(105)]),
-  lighting:     z.string().min(1),
-  filmGrain:    z.number().min(0).max(100),
-  colorTemp:    z.string().min(1),
-  depthOfField: z.string().min(1),
+  pose:         z.string().optional(),
+  yaw:          z.number().optional(),
+  pitch:        z.number().optional(),
+  focalLength:  z.union([z.literal(35), z.literal(50), z.literal(85), z.literal(105)]).optional(),
+  lighting:     z.string().optional(),
+  filmGrain:    z.number().min(0).max(100).optional(),
+  colorTemp:    z.string().optional(),
+  depthOfField: z.string().optional(),
 })
 
 const SceneParamsSchema = z.object({
-  environment: z.string().min(1),
-  mood:        z.string().min(1),
+  environment:  z.string().optional(),
+  background:   z.string().optional(),
+  mood:         z.string().optional(),
+  lighting:     z.string().optional(),
 })
 
 const GenerateJobSchema = z.object({
