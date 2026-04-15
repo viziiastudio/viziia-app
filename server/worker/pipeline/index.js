@@ -1161,9 +1161,13 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
     freshToken = execSync("gcloud auth print-access-token").toString().trim();
   }
 
-  // Compress to JPEG for faster upload to Gemini
+  // Compress frame reference
   const frameCompressed = await sharp(frameRimBuffer).jpeg({ quality: 85 }).toBuffer();
   const frameB64 = frameCompressed.toString("base64");
+
+  // Compress composite for Gemini
+  const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
+  const compositeB64 = compositeCompressed.toString("base64");
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
