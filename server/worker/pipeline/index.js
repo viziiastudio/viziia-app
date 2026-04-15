@@ -160,17 +160,10 @@ async function segmentLenses(fullFramePng, jobId) {
 
   console.log("   SAM2 masks found: image mode");
   if (false) {
-    const debugResp = await axios.get(sam2.individual_masks[0].url, { responseType: "arraybuffer" });
     const { writeFileSync } = await import("fs");
-    writeFileSync("/tmp/sam2-mask-0.png", Buffer.from(debugResp.data));
-    console.log("   Mask 0 saved, size:", debugResp.data.byteLength);
   }
-  // Save first mask for debugging
   if (sam2.individual_masks?.length > 0) {
-    const debugResp = await axios.get(sam2.individual_masks[0].url, { responseType: "arraybuffer" });
     const { writeFileSync } = await import("fs");
-    writeFileSync("/tmp/sam2-mask-0.png", Buffer.from(debugResp.data));
-    console.log("   Mask 0 saved to /tmp/sam2-mask-0.png, size:", debugResp.data.byteLength);
   }
 
   if (!sam2.individual_masks || sam2.individual_masks.length < 2) {
@@ -451,10 +444,7 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
 
 async function extractFaceGeometry(modelImageBuffer) {
   console.log("→ Step 3: Extracting dense face geometry...");
-  // Save base model for debugging
   const { writeFileSync } = await import("fs");
-  writeFileSync("/tmp/base-model-debug.png", modelImageBuffer);
-  console.log("   Base model saved to /tmp/base-model-debug.png, size:", modelImageBuffer.length);
 
   const response = await axios.post(
     `${MEDIAPIPE_URL}/face-geometry`,
@@ -653,8 +643,6 @@ async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, tran
 
   const rimP = { input: rimFinal, left: rimLeft, top: rimTop, blend: "over" };
   layers.push(rimP); matteLayers.push(rimP);
-  const { writeFileSync: wfsR } = await import("fs");
-  wfsR("/tmp/rimFinal-debug.png", rimFinal);
   console.log("   rimFinal saved, size:", rimFinal.length, "at", rimLeft, rimTop, frameBox.width, "x", frameBox.height);
 
   // 5D. Nose pads
@@ -692,8 +680,6 @@ async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, tran
   console.log(`   Rendered ${layers.length} layers + eyewear matte`);
   const { writeFileSync: wfs } = await import("fs");
   const dbgOut = await sharp(baseModelBuffer).composite(layers).png().toBuffer();
-  wfs("/tmp/step5-debug.png", dbgOut);
-  console.log("   Step5 debug saved to /tmp/step5-debug.png");
   console.log("   frontRim size:", frameAsset.frontRim?.length, "leftLens:", frameAsset.leftLens?.length, "rightLens:", frameAsset.rightLens?.length);
   return { compositedBuffer, eyewearMatte };
 }
