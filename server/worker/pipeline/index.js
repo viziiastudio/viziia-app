@@ -1306,7 +1306,7 @@ export async function runViziiaV5Pipeline(job) {
   const t0 = Date.now();
 
   // ── Output cache check ─────────────────────────────────────────────────────
-  const outputCacheHash = require && (() => {})() || (() => {
+  const outputCacheHash = (() => {
     const str = JSON.stringify({ skuId: job.skuId, modelParams: job.modelParams, cameraParams: job.cameraParams, sceneParams: job.sceneParams, resolution: outputSettings.resolution });
     let h = 0; for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0; }
     return Math.abs(h).toString(16);
