@@ -1449,8 +1449,10 @@ export async function runViziiaV5Pipeline(job) {
           const angleJobId = angle === "front" ? jobId : `${jobId}-${angle}`;
           outputs[angle] = await finalizeAndDeliver(buffer, angleJobId, outputSettings, frameAsset);
         }
-        result = outputs.front;
-        result.angles = outputs;
+        result = { ...outputs.front };
+        result.angles = Object.fromEntries(
+          Object.entries(outputs).map(([k, v]) => [k, { url: v.url, jobId: v.jobId }])
+        );
         if (!qa.passed) result.needsReview = true;
         break;
       }
