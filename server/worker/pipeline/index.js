@@ -1417,7 +1417,7 @@ export async function runViziiaV5Pipeline(job) {
         for (const angle of angles) {
           if (angle === "front") continue;
           try {
-            const baseModel = modelImageBuffer;
+            const baseModel = baseModelBuffer;
             const angleModel = await generateAngleVariant(baseModel, angle, jobId);
             // Re-run Steps 3-6 with angle model
             const angleFaceGeo = await extractFaceGeometry(angleModel, jobId);
