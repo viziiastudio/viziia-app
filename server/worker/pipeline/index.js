@@ -1161,8 +1161,20 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
     freshToken = execSync("gcloud auth print-access-token").toString().trim();
   }
 
+  // Crop zone lunettes avec marge pour réduire surface Gemini
+  const margin = 80;
+  const cropX = Math.max(0, frameBox.x - margin);
+  const cropY = Math.max(0, frameBox.y - margin);
+  const cropW = Math.min(imageSize.width - cropX, frameBox.width + margin * 2);
+  const cropH = Math.min(imageSize.height - cropY, frameBox.height + margin * 3);
+
+  const compositeCropped = await sharp(compositedBuffer)
+    .extract({ left: cropX, top: cropY, width: cropW, height: cropH })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
   // Compress to JPEG for faster upload to Gemini
-  const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
+  const compositeCompressed = compositeCropped;
   const frameCompressed = await sharp(frameRimBuffer).jpeg({ quality: 85 }).toBuffer();
   const compositeB64 = compositeCompressed.toString("base64");
   const frameB64 = frameCompressed.toString("base64");
@@ -1253,7 +1265,12 @@ Output the portrait with the eyewear photorealistically integrated as if worn in
   for (const part of parts) {
     if (part.inlineData) {
       console.log("   ✓ Gemini integration complete");
-      return Buffer.from(part.inlineData.data, "base64");
+      const geminiResult = Buffer.from(part.inlineData.data, "base64");
+      // Recompose — paste Gemini crop back onto original composite
+      const recomposed = await sharp(compositedBuffer)
+        .composite([{ input: await sharp(geminiResult).resize(cropW, cropH, { fit: "fill" }).toBuffer(), left: cropX, top: cropY }])
+        .toBuffer();
+      return recomposed;
     }
   }
 
@@ -1347,7 +1364,7 @@ export async function runViziiaV5Pipeline(job) {
         frameAsset.frontRim,
         faceGeometry,
         transform,
-        job.frameMetadata?.lens || {}
+        { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
       );
 
       // Step 7: QA
