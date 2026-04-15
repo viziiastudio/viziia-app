@@ -1144,7 +1144,7 @@ async function cleanupTempS3Keys(jobId) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform) {
+async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform, lensParams = {}) {
   console.log("→ Step 6: Gemini realistic glasses integration...");
 
   const { execSync } = await import("child_process");
@@ -1171,6 +1171,17 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
 
   const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
   const { frameBox } = transform;
+  const tint = lensParams.tint || "clear";
+  const transmission = lensParams.transmission ?? 0.9;
+  const tintDesc = {
+    clear: "perfectly clear transparent lenses with no color",
+    grey: "dark grey tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+    brown: "warm amber/brown tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+    green: "green tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+    blue: "blue tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+    rose: "pink/rose tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+    yellow: "yellow/amber tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+  }[tint] || "tinted lenses";
 
   const prompt = `You are a photorealistic eyewear compositing specialist. You are given:
 1. A portrait with eyewear geometrically placed at the exact correct position
@@ -1186,7 +1197,7 @@ FRAME INTEGRATION (do these in order):
 1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
 2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
 3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
-4. LENS INTEGRATION: Make lenses look like real glass — add subtle reflections matching the scene lighting, correct tint/transmission, slight refraction at edges
+4. LENS INTEGRATION: The lenses are ${tintDesc}. Preserve this exact tint color and opacity. Add subtle reflections matching the scene lighting, slight refraction at edges. The lens color must match the product photo exactly.
 
 LIGHTING & SHADOWS:
 - Cast shadow from the frame onto the nose bridge and upper cheeks
@@ -1202,7 +1213,7 @@ STRICT CONSTRAINTS:
 
 Output the portrait with the eyewear photorealistically integrated as if worn in real life.`;
 
-  const response = await axios.post(endpoint, {
+  const response = await withExponentialBackoff(() => axios.post(endpoint, {
     contents: [{
       role: "user",
       parts: [
@@ -1218,7 +1229,7 @@ Output the portrait with the eyewear photorealistically integrated as if worn in
       "Content-Type": "application/json",
     },
     timeout: 120000,
-  });
+  }));
 
   const parts = response.data.candidates[0].content.parts;
   for (const part of parts) {
@@ -1232,6 +1243,21 @@ Output the portrait with the eyewear photorealistically integrated as if worn in
   return compositedBuffer;
 }
 
+async function withExponentialBackoff(fn, maxAttempts = 4, baseDelayMs = 2000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is429 = err?.response?.status === 429 || err?.message?.includes("429");
+      const isLast = attempt === maxAttempts;
+      if (isLast || !is429) throw err;
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      console.log(`   ⏳ Rate limit — retrying in ${delay/1000}s (attempt ${attempt}/${maxAttempts})`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
 export async function runViziiaV5Pipeline(job) {
   // PROD: Validate job inputs before spending any credits
   validateJob(job);
@@ -1243,6 +1269,20 @@ export async function runViziiaV5Pipeline(job) {
 
   console.log(`\n🚀 Viziia v5-prod — Job ${jobId} [${outputSettings.resolution}] max_attempts=${MAX_ATTEMPTS}`);
   const t0 = Date.now();
+
+  // ── Output cache check ─────────────────────────────────────────────────────
+  const outputCacheHash = require && (() => {})() || (() => {
+    const str = JSON.stringify({ skuId: job.skuId, modelParams: job.modelParams, cameraParams: job.cameraParams, sceneParams: job.sceneParams, resolution: outputSettings.resolution });
+    let h = 0; for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0; }
+    return Math.abs(h).toString(16);
+  })();
+  const outputCacheKey = `cache/outputs/${job.skuId}-${outputCacheHash}.json`;
+  try {
+    const cached = await s3.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key: outputCacheKey }));
+    const cachedData = JSON.parse(await cached.Body.transformToString());
+    console.log("   ✓ Output cache hit — skipping pipeline");
+    return cachedData;
+  } catch (e) { /* cache miss — continue */ }
 
   // Step 1: Decompose frame asset (once per SKU)
   // Skip if pre-built asset provided (e.g. from generatePreviewV5 which decomposes once for both previews)
@@ -1288,7 +1328,8 @@ export async function runViziiaV5Pipeline(job) {
         renderResult.compositedBuffer,
         frameAsset.frontRim,
         faceGeometry,
-        transform
+        transform,
+        job.frameMetadata?.lens || {}
       );
 
       // Step 7: QA
