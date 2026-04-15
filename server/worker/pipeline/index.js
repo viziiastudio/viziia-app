@@ -1161,22 +1161,8 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
     freshToken = execSync("gcloud auth print-access-token").toString().trim();
   }
 
-  // Crop zone lunettes avec marge pour réduire surface Gemini
-  const margin = 80;
-  const cropX = Math.max(0, frameBox.x - margin);
-  const cropY = Math.max(0, frameBox.y - margin);
-  const cropW = Math.min(imageSize.width - cropX, frameBox.width + margin * 2);
-  const cropH = Math.min(imageSize.height - cropY, frameBox.height + margin * 3);
-
-  const compositeCropped = await sharp(compositedBuffer)
-    .extract({ left: cropX, top: cropY, width: cropW, height: cropH })
-    .jpeg({ quality: 90 })
-    .toBuffer();
-
   // Compress to JPEG for faster upload to Gemini
-  const compositeCompressed = compositeCropped;
   const frameCompressed = await sharp(frameRimBuffer).jpeg({ quality: 85 }).toBuffer();
-  const compositeB64 = compositeCompressed.toString("base64");
   const frameB64 = frameCompressed.toString("base64");
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
