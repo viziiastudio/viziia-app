@@ -1256,11 +1256,7 @@ Output the portrait with the eyewear photorealistically integrated as if worn in
     if (part.inlineData) {
       console.log("   ✓ Gemini integration complete");
       const geminiResult = Buffer.from(part.inlineData.data, "base64");
-      // Recompose — paste Gemini crop back onto original composite
-      const recomposed = await sharp(compositedBuffer)
-        .composite([{ input: await sharp(geminiResult).resize(cropW, cropH, { fit: "fill" }).toBuffer(), left: cropX, top: cropY }])
-        .toBuffer();
-      return recomposed;
+      return geminiResult;
     }
   }
 
