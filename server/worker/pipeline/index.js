@@ -1186,28 +1186,35 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
   const { frameBox } = transform;
 
-  const prompt = `You are given two images:
-1. A portrait photo of a person with eyewear already composited at the correct position
-2. The original eyewear product photo for reference
+  const prompt = `You are a photorealistic eyewear compositing specialist. You are given:
+1. A portrait with eyewear geometrically placed at the exact correct position
+2. The original eyewear product photo for material and detail reference
 
-GEOMETRIC ANCHORS (do not deviate from these):
-- Left pupil: x=${Math.round(leftPupil.x)}, y=${Math.round(leftPupil.y)}
-- Right pupil: x=${Math.round(rightPupil.x)}, y=${Math.round(rightPupil.y)}
-- Frame position: x=${frameBox.x}, y=${frameBox.y}, width=${frameBox.width}px, height=${frameBox.height}px
-- Image size: ${imageSize.width}x${imageSize.height}px
+GEOMETRIC ANCHORS — preserve these exactly:
+- Left pupil center: x=${Math.round(leftPupil.x)}, y=${Math.round(leftPupil.y)}
+- Right pupil center: x=${Math.round(rightPupil.x)}, y=${Math.round(rightPupil.y)}
+- Frame bounding box: x=${frameBox.x}, y=${frameBox.y}, width=${frameBox.width}px, height=${frameBox.height}px
 - IPD: ${Math.round(ipdPx)}px
 
-Your task: Make the glasses look photorealistic and naturally worn.
-- Keep the glasses in EXACTLY the same position — use the geometric anchors above
-- The glasses in image 1 show the exact correct placement — preserve it precisely
-- Add natural cast shadows under the frame on the nose bridge and cheeks
-- Add subtle skin indentation where nose pads contact the skin
-- Make temple arms blend naturally behind the ears and hair
-- Match the lighting and color temperature of the scene
-- Do NOT move, resize, or modify the frame geometry
-- Do NOT change the face, skin, or background
-- Output must be ${imageSize.width}x${imageSize.height}px square format
-Output: the portrait with photorealistic naturally integrated glasses`;
+FRAME INTEGRATION (do these in order):
+1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
+2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
+3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
+4. LENS INTEGRATION: Make lenses look like real glass — add subtle reflections matching the scene lighting, correct tint/transmission, slight refraction at edges
+
+LIGHTING & SHADOWS:
+- Cast shadow from the frame onto the nose bridge and upper cheeks
+- Soft shadow from temple arms onto the temples
+- Match the exact color temperature and lighting direction of the scene
+- Add subtle specular highlight on frame where light hits
+
+STRICT CONSTRAINTS:
+- Do NOT move or resize the frame — anchors are mathematically exact
+- Do NOT alter the face, skin tone, hair, or background
+- Do NOT add or remove any facial features
+- Output: ${imageSize.width}x${imageSize.height}px, same composition as input
+
+Output the portrait with the eyewear photorealistically integrated as if worn in real life.`;
 
   const response = await axios.post(endpoint, {
     contents: [{
