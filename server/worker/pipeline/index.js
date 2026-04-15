@@ -1171,6 +1171,23 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
 
   const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
   const { frameBox } = transform;
+  // ── Frame type detection ──────────────────────────────────────────────────
+  const fw = lensParams.frameWidthMm || 135;
+  const lw = lensParams.lensWidthMm || 50;
+  const lh = lensParams.lensHeightMm || 40;
+  const ratio = lh / lw;
+  let frameType = "rectangle";
+  if (ratio > 0.85) frameType = "round";
+  else if (ratio > 0.70) frameType = "oval";
+  else if (ratio < 0.50) frameType = "narrow";
+
+  const frameTypeDesc = {
+    round: "round circular lenses — equal width and height, the frame sits centered on the eyes",
+    oval: "oval lenses — slightly wider than tall, classic proportions",
+    rectangle: "rectangular lenses — wider than tall, angular corners",
+    narrow: "narrow rectangular lenses — very wide and flat, low on the face bridge",
+  }[frameType];
+
   const tint = lensParams.tint || "clear";
   const transmission = lensParams.transmission ?? 0.9;
   const tintDesc = {
@@ -1194,6 +1211,7 @@ GEOMETRIC ANCHORS — preserve these exactly:
 - IPD: ${Math.round(ipdPx)}px
 
 FRAME INTEGRATION (do these in order):
+1. FRAME TYPE: These are ${frameTypeDesc}. Use this to correctly render the frame shape, shadow casting, and how it sits on the face.
 1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
 2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
 3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
