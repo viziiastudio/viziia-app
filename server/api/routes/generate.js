@@ -87,6 +87,7 @@ const GenerateJobSchema = z.object({
   sceneParams:    SceneParamsSchema,
   outputSettings: z.object({
     resolution: z.enum(['preview', '2K', '4K']),
+    angles: z.array(z.enum(['front', 'three-quarter-left', 'three-quarter-right', 'profile-left'])).optional(),
   }),
   maxAttempts: z.number().int().min(1).max(5).optional(),
 })
