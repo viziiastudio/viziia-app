@@ -112,4 +112,11 @@ router.post('/', async (req, res) => {
   res.json({ jobId: job.id, status: 'queued', skuId: jobData.skuId })
 })
 
+// ─── Test multi-angle endpoint ────────────────────────────────────────────────
+router.post('/test-angle', async (req, res) => {
+  const { jobId, angle } = req.body;
+  if (!jobId || !angle) return res.status(400).json({ error: 'jobId and angle required' });
+  res.json({ status: 'queued', jobId, angle });
+});
+
 export default router

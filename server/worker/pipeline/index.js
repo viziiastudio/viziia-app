@@ -1279,6 +1279,62 @@ async function withExponentialBackoff(fn, maxAttempts = 4, baseDelayMs = 2000) {
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-ANGLE GENERATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function generateAngleVariant(frontModelBuffer, angle, jobId) {
+  console.log(`→ Generating ${angle} angle variant...`);
+
+  let freshToken;
+  if (process.env.GOOGLE_CREDENTIALS_B64) {
+    const { GoogleAuth } = await import("google-auth-library");
+    const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, "base64").toString());
+    const auth = new GoogleAuth({ credentials, scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+    const client = await auth.getClient();
+    const tokenResponse = await client.getAccessToken();
+    freshToken = tokenResponse.token;
+  } else {
+    const { execSync } = await import("child_process");
+    freshToken = execSync("gcloud auth print-access-token").toString().trim();
+  }
+
+  const anglePrompts = {
+    "front":        "Keep this exact portrait as-is. Do not change anything.",
+    "three-quarter-left":  "Rotate this person's head 35-40 degrees to their left (camera right). Keep the exact same person, same face features, same outfit, same hair, same background. Only the head angle changes. Square 1:1 format.",
+    "three-quarter-right": "Rotate this person's head 35-40 degrees to their right (camera left). Keep the exact same person, same face features, same outfit, same hair, same background. Only the head angle changes. Square 1:1 format.",
+    "profile-left":        "Rotate this person's head 80-90 degrees to show a left side profile. Keep the exact same person, same outfit, same hair, same background. Only the head angle changes. Square 1:1 format.",
+  };
+
+  const prompt = anglePrompts[angle] || anglePrompts["three-quarter-left"];
+  const imageB64 = (await sharp(frontModelBuffer).jpeg({ quality: 90 }).toBuffer()).toString("base64");
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
+
+  const response = await withExponentialBackoff(() => axios.post(endpoint, {
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: "image/jpeg", data: imageB64 } },
+        { text: prompt }
+      ]
+    }],
+    generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+  }, {
+    headers: { Authorization: `Bearer ${freshToken}`, "Content-Type": "application/json" },
+    timeout: 120000,
+  }));
+
+  const parts = response.data.candidates[0].content.parts;
+  for (const part of parts) {
+    if (part.inlineData) {
+      console.log(`   ✓ ${angle} variant generated`);
+      return Buffer.from(part.inlineData.data, "base64");
+    }
+  }
+  throw new Error(`No image returned for angle ${angle}`);
+}
+
 export async function runViziiaV5Pipeline(job) {
   // PROD: Validate job inputs before spending any credits
   validateJob(job);
@@ -1353,12 +1409,48 @@ export async function runViziiaV5Pipeline(job) {
         { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
       );
 
+      // Step 6b: Multi-angle generation
+      const angles = job.outputSettings?.angles || ["front"];
+      const angleBuffers = { front: refinedBuffer };
+
+      if (angles.length > 1) {
+        for (const angle of angles) {
+          if (angle === "front") continue;
+          try {
+            const baseModel = modelImageBuffer;
+            const angleModel = await generateAngleVariant(baseModel, angle, jobId);
+            // Re-run Steps 3-6 with angle model
+            const angleFaceGeo = await extractFaceGeometry(angleModel, jobId);
+            if (angleFaceGeo) {
+              const angleTransform = computeFrameTransform(angleFaceGeo, frameAsset, job.cameraParams);
+              const angleRender = await renderFrameLayers(angleModel, frameAsset, angleTransform, jobId);
+              const angleRefined = await integrateGlassesWithGemini(
+                angleRender.compositedBuffer, frameAsset.frontRim,
+                angleFaceGeo, angleTransform,
+                { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
+              );
+              angleBuffers[angle] = angleRefined;
+              console.log(`   ✓ ${angle} angle complete`);
+            }
+          } catch (err) {
+            console.warn(`   ⚠ ${angle} angle failed: ${err.message}`);
+          }
+        }
+      }
+
       // Step 7: QA
       const qa = await runQualityCheck(refinedBuffer, faceGeometry, transform, frameAsset);
 
       if (qa.passed || attempt === MAX_ATTEMPTS) {
         // Step 8: Deliver
-        result = await finalizeAndDeliver(refinedBuffer, jobId, outputSettings, frameAsset);
+        // Deliver all angles
+        const outputs = {};
+        for (const [angle, buffer] of Object.entries(angleBuffers)) {
+          const angleJobId = angle === "front" ? jobId : `${jobId}-${angle}`;
+          outputs[angle] = await finalizeAndDeliver(buffer, angleJobId, outputSettings, frameAsset);
+        }
+        result = outputs.front;
+        result.angles = outputs;
         if (!qa.passed) result.needsReview = true;
         break;
       }
