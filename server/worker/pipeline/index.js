@@ -510,7 +510,7 @@ async function extractFaceGeometry(modelImageBuffer) {
 // ─────────────────────────────────────────────
 
 function calculateFrameTransform(faceGeometry, frameAsset) {
-  const { leftPupil, rightPupil, ipdPx, faceWidthPx, headPose } = faceGeometry;
+  const { leftPupil, rightPupil, ipdPx, faceWidthPx, headPose = { yaw: 0, pitch: 0, roll: 0 } } = faceGeometry;
   const { dimensions } = frameAsset;
 
   // FIX: scale from face geometry, not a hardcoded 63mm assumption
@@ -531,7 +531,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
   const frameTopY    = leftPupil.y - lensHeightPx * 0.60;
   const frameLeftX   = frameCenterX - frameWidthPx / 2;
 
-  const yawRad = (headPose.yaw * Math.PI) / 180;
+  const yawRad = ((headPose?.yaw || 0) * Math.PI) / 180;
   const perspectiveScale = Math.cos(yawRad);
 
   // FIX 1: outer inset — gap between frame edge and lens edge (endpiece margin)
