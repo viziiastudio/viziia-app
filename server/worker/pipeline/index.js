@@ -1422,7 +1422,7 @@ export async function runViziiaV5Pipeline(job) {
             // Re-run Steps 3-6 with angle model
             const angleFaceGeo = await extractFaceGeometry(angleModel, jobId);
             if (angleFaceGeo) {
-              const angleTransform = computeFrameTransform(angleFaceGeo, frameAsset, job.cameraParams);
+              const angleTransform = calculateFrameTransform(angleFaceGeo, frameAsset);
               const angleRender = await renderFrameLayers(angleModel, frameAsset, angleTransform, jobId);
               const angleRefined = await integrateGlassesWithGemini(
                 angleRender.compositedBuffer, frameAsset.frontRim,
