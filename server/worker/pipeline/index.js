@@ -1432,7 +1432,13 @@ export async function runViziiaV5Pipeline(job) {
                 const meta = await sharp(angleModel).metadata();
                 angleFaceGeo.imageSize = { width: meta.width, height: meta.height };
               }
-              const angleTransform = calculateFrameTransform(angleFaceGeo, frameAsset);
+              let angleTransform;
+              try {
+                angleTransform = calculateFrameTransform(angleFaceGeo, frameAsset);
+              } catch(e) {
+                console.warn("   ⚠ calculateFrameTransform failed:", e.message);
+                throw e;
+              }
               const angleRender = await renderFrameLayers(angleModel, frameAsset, angleTransform, jobId);
               const angleRefined = await integrateGlassesWithGemini(
                 angleRender.compositedBuffer, frameAsset.frontRim,
