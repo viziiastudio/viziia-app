@@ -500,7 +500,10 @@ async function extractFaceGeometry(modelImageBuffer) {
     rightEar:          L.right_ear_tragus,
     headPose:          data.headPose,   // yaw/pitch/roll from solvePnP
     quality:           data.quality,
-    imageSize:         data.imageSize,
+    imageSize:         data.imageSize || await (async () => {
+      const meta = await sharp(modelImageBuffer).metadata();
+      return { width: meta.width, height: meta.height };
+    })(),
   };
 }
 
