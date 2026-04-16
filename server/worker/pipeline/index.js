@@ -1426,6 +1426,11 @@ export async function runViziiaV5Pipeline(job) {
             // Re-run Steps 3-6 with angle model
             const angleFaceGeo = await extractFaceGeometry(angleModel, { allowAnyPose: true });
             if (angleFaceGeo) {
+              // Inject imageSize from buffer if sidecar doesn't return it
+              if (!angleFaceGeo.imageSize) {
+                const meta = await sharp(angleModel).metadata();
+                angleFaceGeo.imageSize = { width: meta.width, height: meta.height };
+              }
               const angleTransform = calculateFrameTransform(angleFaceGeo, frameAsset);
               const angleRender = await renderFrameLayers(angleModel, frameAsset, angleTransform, jobId);
               const angleRefined = await integrateGlassesWithGemini(
