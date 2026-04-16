@@ -442,7 +442,7 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
 // FIX: uses ipdPx and faceWidthPx directly from sidecar (not recomputed)
 // ─────────────────────────────────────────────
 
-async function extractFaceGeometry(modelImageBuffer) {
+async function extractFaceGeometry(modelImageBuffer, options = {}) {
   console.log("→ Step 3: Extracting dense face geometry...");
   const { writeFileSync } = await import("fs");
 
@@ -473,7 +473,7 @@ async function extractFaceGeometry(modelImageBuffer) {
     throw new Error(`Sidecar contract violation — missing fields: ${missingFields.join(", ")}`);
   }
 
-  if (!data.quality.poseWithinSupport) {
+  if (!data.quality.poseWithinSupport && !options?.allowAnyPose) {
     throw new Error(`Pose outside support envelope — yaw: ${data.headPose.yaw.toFixed(1)}°`);
   }
 
@@ -1424,7 +1424,7 @@ export async function runViziiaV5Pipeline(job) {
             const baseModel = baseModelBuffer;
             const angleModel = await generateAngleVariant(baseModel, angle, jobId);
             // Re-run Steps 3-6 with angle model
-            const angleFaceGeo = await extractFaceGeometry(angleModel, jobId);
+            const angleFaceGeo = await extractFaceGeometry(angleModel, { allowAnyPose: true });
             if (angleFaceGeo) {
               const angleTransform = calculateFrameTransform(angleFaceGeo, frameAsset);
               const angleRender = await renderFrameLayers(angleModel, frameAsset, angleTransform, jobId);
