@@ -565,7 +565,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
     frameBox, leftLensBox, rightLensBox,
     leftTempleStart:  { x: frameBox.x, y: Math.round(frameTopY + lensHeightPx * 0.3) },
     rightTempleStart: { x: frameBox.x + frameBox.width, y: Math.round(frameTopY + lensHeightPx * 0.3) },
-    rotation: headPose.roll,
+    rotation: headPose?.roll || 0,
     perspectiveScale,
     frameWidthPx, lensHeightPx, templeLengthPx, mmToPx,
   };
@@ -577,7 +577,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
 
 async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, transform) {
   console.log("→ Step 5: Rendering frame layers...");
-  const { yaw } = faceGeometry.headPose;
+  const yaw = faceGeometry.headPose?.yaw || 0;
   const { frameBox, leftLensBox, rightLensBox, leftTempleStart, rightTempleStart } = transform;
   console.log("   Transform:", JSON.stringify({ frameBox, leftLensBox, rightLensBox }, null, 2));
   console.log("   Image size:", faceGeometry.imageSize);
@@ -998,7 +998,7 @@ async function runQualityCheck(finalBuffer, faceGeometry, transform, frameAsset)
   }
 
   // QA 3: Head pose support envelope
-  const { yaw, pitch } = headPose;
+  const yaw = headPose?.yaw || 0; const pitch = headPose?.pitch || 0;
   if (!sidecarQuality.poseWithinSupport) {
     issues.push(`pose_out_of_support: yaw=${yaw.toFixed(1)}° pitch=${pitch.toFixed(1)}°`);
     scores.headPose = 0;
