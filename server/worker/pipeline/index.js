@@ -1416,6 +1416,7 @@ export async function runViziiaV5Pipeline(job) {
       if (angles.length > 1) {
         for (const angle of angles) {
           if (angle === "front") continue;
+          await new Promise(r => setTimeout(r, 8000)); // 8s delay between angles — avoid Gemini rate limit
           try {
             const baseModel = baseModelBuffer;
             const angleModel = await generateAngleVariant(baseModel, angle, jobId);
