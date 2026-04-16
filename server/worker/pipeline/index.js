@@ -465,16 +465,17 @@ async function extractFaceGeometry(modelImageBuffer, options = {}) {
   if (data.ipdPx == null)                  missingFields.push("ipdPx");
   if (data.faceWidthPx == null)            missingFields.push("faceWidthPx");
   if (!data.headPose?.yaw != null ? false : true) missingFields.push("headPose");
-  if (!data.namedLandmarks?.sellion)       missingFields.push("namedLandmarks.sellion");
-  if (!data.namedLandmarks?.left_temple)   missingFields.push("namedLandmarks.left_temple");
-  if (!data.namedLandmarks?.right_temple)  missingFields.push("namedLandmarks.right_temple");
-  if (!data.quality)                       missingFields.push("quality");
-  if (missingFields.length > 0) {
-    throw new Error(`Sidecar contract violation — missing fields: ${missingFields.join(", ")}`);
-  }
-
-  if (!data.quality.poseWithinSupport && !options?.allowAnyPose) {
-    throw new Error(`Pose outside support envelope — yaw: ${data.headPose.yaw.toFixed(1)}°`);
+  if (!options?.allowAnyPose) {
+    if (!data.namedLandmarks?.sellion)       missingFields.push("namedLandmarks.sellion");
+    if (!data.namedLandmarks?.left_temple)   missingFields.push("namedLandmarks.left_temple");
+    if (!data.namedLandmarks?.right_temple)  missingFields.push("namedLandmarks.right_temple");
+    if (!data.quality)                       missingFields.push("quality");
+    if (missingFields.length > 0) {
+      throw new Error(`Sidecar contract violation — missing fields: ${missingFields.join(", ")}`);
+    }
+    if (!data.quality.poseWithinSupport) {
+      throw new Error(`Pose outside support envelope — yaw: ${data.headPose.yaw.toFixed(1)}°`);
+    }
   }
 
   // FIX: use iris centers from sidecar directly (pixel space, pre-computed)
