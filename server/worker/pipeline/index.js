@@ -1150,6 +1150,52 @@ async function cleanupTempS3Keys(jobId) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+
+async function extractSKUMaterials(frameRimBuffer) {
+  console.log("   → Analyzing SKU materials...");
+  try {
+    let freshToken;
+    if (process.env.GOOGLE_CREDENTIALS_B64) {
+      const { GoogleAuth } = await import("google-auth-library");
+      const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_B64, "base64").toString());
+      const auth = new GoogleAuth({ credentials, scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+      const client = await auth.getClient();
+      freshToken = (await client.getAccessToken()).token;
+    } else {
+      const { execSync } = await import("child_process");
+      freshToken = execSync("gcloud auth print-access-token").toString().trim();
+    }
+
+    const frameB64 = (await sharp(frameRimBuffer).jpeg({ quality: 85 }).toBuffer()).toString("base64");
+    const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3.1-flash-image-preview:generateContent`;
+
+    const response = await axios.post(endpoint, {
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: frameB64 } },
+          { text: `Analyze this eyewear product photo and describe in 2-3 sentences:
+1. Frame material and finish (e.g. "brushed silver titanium with matte finish", "shiny black acetate")
+2. Lens properties (e.g. "semi-transparent amber tinted lenses with slight yellow gradient, 70% opacity")
+3. Key reflective properties (e.g. "high specular highlights on metal parts, subtle lens reflections")
+Be concise and technical. Output only the description, no headers.` }
+        ]
+      }],
+      generationConfig: { responseModalities: ["TEXT"] },
+    }, {
+      headers: { Authorization: `Bearer ${freshToken}`, "Content-Type": "application/json" },
+      timeout: 15000,
+    });
+
+    const text = response.data.candidates[0].content.parts.find(p => p.text)?.text || "";
+    console.log("   ✓ Materials:", text.slice(0, 80) + "...");
+    return text;
+  } catch (err) {
+    console.warn("   ⚠ Material extraction failed:", err.message);
+    return "";
+  }
+}
+
 async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform, lensParams = {}) {
   console.log("→ Step 6: Gemini realistic glasses integration...");
 
@@ -1174,6 +1220,9 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   // Compress composite for Gemini
   const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
   const compositeB64 = compositeCompressed.toString("base64");
+
+  // Extract SKU material properties for prompt enrichment
+  const skuMaterials = await extractSKUMaterials(frameRimBuffer);
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
@@ -1220,6 +1269,7 @@ GEOMETRIC ANCHORS — preserve these exactly:
 
 FRAME INTEGRATION (do these in order):
 1. FRAME TYPE: These are ${frameTypeDesc}. Use this to correctly render the frame shape, shadow casting, and how it sits on the face.
+${skuMaterials ? `MATERIAL ANALYSIS (extracted from product photo): ${skuMaterials}. Use these exact material properties for the integration — match the finish, reflectivity, and lens opacity precisely.` : ""}
 1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
 2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
 3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
@@ -1262,7 +1312,30 @@ Output the portrait with the eyewear photorealistically integrated as if worn in
     if (part.inlineData) {
       console.log("   ✓ Gemini integration complete");
       const geminiResult = Buffer.from(part.inlineData.data, "base64");
-      return geminiResult;
+
+      // Tile sharpen — enhance frame zone only
+      try {
+        const margin = 20;
+        const cropX = Math.max(0, frameBox.x - margin);
+        const cropY = Math.max(0, frameBox.y - margin);
+        const cropW = Math.min(imageSize.width - cropX, frameBox.width + margin * 2);
+        const cropH = Math.min(imageSize.height - cropY, frameBox.height + margin * 2);
+
+        const frameCrop = await sharp(geminiResult)
+          .extract({ left: cropX, top: cropY, width: cropW, height: cropH })
+          .sharpen({ sigma: 1.2, m1: 1.5, m2: 0.7 })
+          .toBuffer();
+
+        const enhanced = await sharp(geminiResult)
+          .composite([{ input: frameCrop, left: cropX, top: cropY }])
+          .toBuffer();
+
+        console.log("   ✓ Frame zone sharpened");
+        return enhanced;
+      } catch (err) {
+        console.warn("   ⚠ Sharpen failed:", err.message);
+        return geminiResult;
+      }
     }
   }
 
