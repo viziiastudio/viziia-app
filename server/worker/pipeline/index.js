@@ -1439,7 +1439,7 @@ export async function runViziiaV5Pipeline(job) {
                 console.warn("   ⚠ calculateFrameTransform failed:", e.message);
                 throw e;
               }
-              const angleRender = await renderFrameLayers(angleModel, frameAsset, angleTransform, jobId);
+              const angleRender = await renderFrameLayers(angleModel, frameAsset, angleFaceGeo, angleTransform);
               const angleRefined = await integrateGlassesWithGemini(
                 angleRender.compositedBuffer, frameAsset.frontRim,
                 angleFaceGeo, angleTransform,
