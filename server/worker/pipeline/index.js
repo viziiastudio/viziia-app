@@ -1221,9 +1221,6 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
   const compositeB64 = compositeCompressed.toString("base64");
 
-  // Extract SKU material properties for prompt enrichment
-  const skuMaterials = await extractSKUMaterials(frameRimBuffer);
-
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
   const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
@@ -1269,7 +1266,6 @@ GEOMETRIC ANCHORS — preserve these exactly:
 
 FRAME INTEGRATION (do these in order):
 1. FRAME TYPE: These are ${frameTypeDesc}. Use this to correctly render the frame shape, shadow casting, and how it sits on the face.
-${skuMaterials ? `MATERIAL ANALYSIS (extracted from product photo): ${skuMaterials}. Use these exact material properties for the integration — match the finish, reflectivity, and lens opacity precisely.` : ""}
 1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
 2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
 3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
