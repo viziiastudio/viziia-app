@@ -1181,7 +1181,7 @@ async function extractSKUMaterials(frameRimBuffer) {
 Be concise and technical. Output only the description, no headers.` }
         ]
       }],
-      generationConfig: { responseModalities: ["TEXT"] },
+      generationConfig: {},
     }, {
       headers: { Authorization: `Bearer ${freshToken}`, "Content-Type": "application/json" },
       timeout: 15000,
