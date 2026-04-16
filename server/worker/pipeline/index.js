@@ -214,9 +214,11 @@ function frameMetadataHash(frameMetadata, frontPhotoBuffer) {
   const d = frameMetadata.dimensions;
   const dimKey = `${d.frameWidthMm}-${d.lensWidthMm}-${d.lensHeightMm}-${d.bridgeWidthMm}-${d.templeLengthMm}-${frameMetadata.bridgeType}-${frameMetadata.lens?.rimStyle}`;
 
-  // FIX 1: Include MD5 of front photo bytes — same dimensions ≠ same frame
-  // A 50mm black frame and 50mm tortoiseshell frame have identical dims but different assets
-  const photoHash = createHash("md5").update(frontPhotoBuffer).digest("hex").slice(0, 12);
+  // Use stable URL (strip presigned params) for cache key
+  const stableUrl = typeof frontPhotoBuffer === "string"
+    ? frontPhotoBuffer.split("?")[0]
+    : frontPhotoBuffer;
+  const photoHash = createHash("md5").update(stableUrl).digest("hex").slice(0, 12);
 
   return `${dimKey.replace(/[^a-z0-9\-]/gi, "_")}-${photoHash}`;
 }
@@ -1424,6 +1426,13 @@ export async function runViziiaV5Pipeline(job) {
           try {
             const baseModel = baseModelBuffer;
             const angleModel = await generateAngleVariant(baseModel, angle, jobId);
+            // Use 3/4 SKU photo if provided
+            if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
+              frameAsset = await decomposeFrameAsset(
+                { front: clientPhotos.threeQuarter },
+                frameMetadata, jobId
+              );
+            }
             // Re-run Steps 3-6 with angle model
             const angleFaceGeo = await extractFaceGeometry(angleModel, { allowAnyPose: true });
             if (angleFaceGeo) {
