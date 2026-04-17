@@ -522,7 +522,7 @@ function calculateFrameTransform(faceGeometry, frameAsset) {
   // FIX: scale from face geometry, not a hardcoded 63mm assumption
   // Frame width should be ~85-95% of face width at temple level (empirical eyewear fit)
   // mmToPx derived from face width, not assumed IPD
-  const FRAME_TO_FACE_RATIO = 0.82;
+  const FRAME_TO_FACE_RATIO = 0.90;
   const frameWidthPx = Math.round(faceWidthPx * FRAME_TO_FACE_RATIO);
 
   // Derive mm-to-px from real frame dimensions + target pixel width
