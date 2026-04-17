@@ -1338,6 +1338,8 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
     yellow: "yellow/amber tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
   }[tint] || "tinted lenses";
 
+  // Drop raw pixel coords from prompt — visual composite does the spatial anchoring
+  // Keep only physical descriptors per Gemini architecture analysis
   const prompt = `You are a photorealistic eyewear compositing specialist. You are given:
 1. A portrait with eyewear geometrically placed at the exact correct position
 2. The original eyewear product photo for material and detail reference
@@ -1350,11 +1352,11 @@ GEOMETRIC ANCHORS — preserve these exactly:
 
 FRAME INTEGRATION (do these in order):
 1. FRAME TYPE: These are ${frameTypeDesc}. Use this to correctly render the frame shape, shadow casting, and how it sits on the face.
-1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin. The frame must cast a natural shadow on the cheekbones and nose consistent with the scene lighting direction. The glasses must look like they belong in this exact environment — same color temperature, same ambient light, same atmospheric haze if any. TEMPLE ARMS: In this frontal view, the temple arms (branches) go straight back toward the ears and are NOT visible from the front — do NOT render or hallucinate visible temple arms. Only the very beginning of the temple hinge is visible at the outer edge of the frame.
-2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
-3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
-4. LENS INTEGRATION: The lenses are ${tintDesc}. The lens color must be CLEARLY VISIBLE and vibrant — this is a product showcase, the tint is a KEY selling feature. Preserve and ENHANCE the lens color saturation. The lens tint must be immediately recognizable and match the product photo exactly. Do NOT make lenses too transparent or dark. ABSOLUTELY NO glare, NO harsh specular highlights, NO white reflections on lenses — maximum one very subtle soft reflection allowed.
-5. NOSE BRIDGE CONTACT: The nose bridge or nose pads must sit NATURALLY on the nose — no floating frame. Render a very subtle skin compression where the bridge contacts the nose. The fit must look comfortable and anatomically correct, as if the person has been wearing the glasses for hours. No gaps between frame and skin.
+1. FRAME BODY: Continuous solid wireframe, high-contrast metallic edge, unbroken contour, sharp focal plane on front frame. Match surface finish exactly — matte/brushed metal stays matte, glossy acetate stays glossy. Frame casts natural shadow on cheekbones and nose consistent with scene lighting direction. Same color temperature and ambient light as environment.
+2. TEMPLE ARMS: Temples cleanly occluded by hair and ears, accurate depth of field. The arm disappears behind the ear with correct depth — no floating temples, no hallucinated temples in frontal view.
+3. NOSE PADS: Natural skin compression where nose pads or bridge contact the nose. Subtle redness and micro-shadow at contact points. Frame sits as if worn for hours — no gaps between frame and skin.
+4. LENS INTEGRATION: The lenses are ${tintDesc}. Lens color must be CLEARLY VISIBLE and vibrant — this is a product showcase. Sub-surface scattering visible on skin behind colored lens. Specular highlight mapped to outer lens curvature only — ABSOLUTELY NO glare, NO harsh white reflections. Distinct physical separation between frame edge and cheekbone. Preserve exact tint color and saturation.
+5. ENVIRONMENTAL COHERENCE: Frame material, lens reflections, and shadows must match the exact lighting of this scene — same color temperature, same light direction, same atmospheric quality.
 
 LIGHTING & SHADOWS:
 - Cast shadow from the frame onto the nose bridge and upper cheeks
