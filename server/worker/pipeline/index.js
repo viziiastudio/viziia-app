@@ -1396,11 +1396,19 @@ CONTACT & SHADOWS:
 
       // Force back to original dimensions — Gemini sometimes reframes
       const geminiMeta = await sharp(geminiRaw).metadata();
-      const geminiResult = (geminiMeta.width === imageSize.width && geminiMeta.height === imageSize.height)
-        ? geminiRaw
-        : await sharp(geminiRaw)
-            .resize(imageSize.width, imageSize.height, { fit: "fill", kernel: sharp.kernel.lanczos3 })
-            .toBuffer();
+      let geminiResult;
+      if (geminiMeta.width === imageSize.width && geminiMeta.height === imageSize.height) {
+        geminiResult = geminiRaw;
+      } else {
+        // Gemini changed dimensions — composite result centered on original buffer
+        console.log(`   ⚠ Gemini returned ${geminiMeta.width}x${geminiMeta.height} vs expected ${imageSize.width}x${imageSize.height} — recomposing`);
+        const resized = await sharp(geminiRaw)
+          .resize(imageSize.width, imageSize.height, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .toBuffer();
+        geminiResult = await sharp(compositedBuffer)
+          .composite([{ input: resized, left: 0, top: 0 }])
+          .toBuffer();
+      }
 
       // Tile sharpen — enhance frame zone only
       try {
