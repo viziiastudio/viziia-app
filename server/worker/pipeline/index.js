@@ -1340,34 +1340,36 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
 
   // Drop raw pixel coords from prompt — visual composite does the spatial anchoring
   // Keep only physical descriptors per Gemini architecture analysis
-  const prompt = `ROLE: You are an expert high-end e-commerce photo retoucher specializing in optical eyewear.
+  const prompt = `You are a photorealistic eyewear compositing specialist.
 
 INPUTS:
-Image 1: The target portrait. The eyewear is ALREADY perfectly positioned, sized, and scaled.
-Image 2: The original product reference.
+Image 1: Portrait with eyewear already geometrically placed at the exact correct position.
+Image 2: Original product photo for material and detail reference.
 
-TASK: Harmonize the lighting, materials, and contact points to create a flawless, photorealistic integration.
+TASK: Integrate the eyewear from Image 1 to look photorealistic — harmonize lighting, materials, shadows, and contact points.
 
-STRICT GEOMETRIC CONSTRAINTS:
-- ABSOLUTELY DO NOT move, resize, warp, or reshape the eyewear in Image 1.
-- DO NOT alter the model's facial features, expression, hair, or background.
-- Maintain the exact ${frameTypeDesc} shape.
+STRICT CONSTRAINTS:
+- DO NOT move, resize, warp, or reshape the eyewear — position is mathematically exact
+- DO NOT alter the face, skin tone, hair, or background
+- Output MUST be exactly ${imageSize.width}x${imageSize.height}px — same crop and composition as Image 1, square 1:1 format, NO reframing
 
-MATERIAL PHYSICS & FRAME (Thin Metal):
-- Render the frame as a rigid, continuous metallic structure with high-frequency edge contrast.
-- Maintain an unbroken, hard boundary between the metal frame and the skin. The frame must not blur or melt into the face.
-- Match the exact surface finish of Image 2. Apply a micro-specular glint to the metal where it catches the scene primary light.
+FRAME (${frameTypeDesc}):
+- Render as rigid continuous metallic structure with high-frequency edge contrast
+- Unbroken hard boundary between metal and skin — frame must not blur into face
+- Match exact surface finish from Image 2 — micro-specular glint where light hits
 
-OPTICAL LENS INTEGRATION (${tintDesc}):
-- Render the lenses as curved optical glass with physical thickness, not a flat digital color filter.
-- Preserve the ${tintDesc} color and saturation from Image 2.
-- The skin behind the lens must show subsurface scattering and interact naturally with the tint.
-- Add subtle Fresnel reflections mapping only to the outer curvature of the glass. No harsh, opaque glare blocking the eyes.
+LENSES (${tintDesc}):
+- Render as curved optical glass with physical thickness — NOT a flat color filter
+- Preserve exact tint color and saturation — CLEARLY VISIBLE, vibrant, product showcase
+- Subsurface scattering on skin visible behind lens
+- Subtle Fresnel reflections on outer curvature only — no harsh glare, no white reflections blocking eyes
 
 CONTACT & SHADOWS:
-- Nose Pads: Render realistic skin compression, micro-shadows, and subtle skin warmth where the pads rest on the nose. No floating gaps.
-- Occlusion: Temple arms must tuck cleanly behind hair and ears with an accurate, natural depth of field.
-- Cast Shadows: The frame and temples must cast a soft, directional shadow onto the cheekbones, nose, and temples that perfectly matches the ambient color temperature and light direction of the surrounding scene.`;
+- Nose bridge: realistic skin compression, micro-shadows, no floating gaps
+- Temples: tuck cleanly behind hair and ears with natural depth of field
+- Cast soft directional shadows on cheekbones and nose matching scene lighting
+
+OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical composition to Image 1.\`;
 
 
   const response = await withExponentialBackoff(() => axios.post(endpoint, {
