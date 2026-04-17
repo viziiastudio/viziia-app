@@ -1319,7 +1319,7 @@ Output the portrait with the eyewear photorealistically integrated as if worn in
 
         const frameCrop = await sharp(geminiResult)
           .extract({ left: cropX, top: cropY, width: cropW, height: cropH })
-          .sharpen({ sigma: 1.2, m1: 1.5, m2: 0.7 })
+          .sharpen({ sigma: 0.6, m1: 0.8, m2: 0.5 })
           .toBuffer();
 
         const enhanced = await sharp(geminiResult)
