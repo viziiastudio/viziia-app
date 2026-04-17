@@ -1369,7 +1369,7 @@ CONTACT & SHADOWS:
 - Temples: tuck cleanly behind hair and ears with natural depth of field
 - Cast soft directional shadows on cheekbones and nose matching scene lighting
 
-OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical composition to Image 1.\`;
+OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical composition to Image 1.`;
 
 
   const response = await withExponentialBackoff(() => axios.post(endpoint, {
