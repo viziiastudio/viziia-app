@@ -1556,15 +1556,6 @@ export async function runViziiaV5Pipeline(job) {
       // Step 5: Deterministic render — returns composited image + eyewear matte
       const renderResult = await renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, transform);
 
-      // Step 6: Gemini realistic glasses integration with geometric anchors
-      const refinedBuffer = await integrateGlassesWithGemini(
-        envReflectedBuffer,
-        frameAsset.frontRim,
-        faceGeometry,
-        transform,
-        { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
-      );
-
       // Step 5.5: IOR lens displacement
       const displacedBuffer = await applyLensDisplacement(
         renderResult.compositedBuffer,
@@ -1578,6 +1569,15 @@ export async function runViziiaV5Pipeline(job) {
         baseModelBuffer,
         transform,
         job.frameMetadata?.lens
+      );
+
+      // Step 6: Gemini realistic glasses integration with geometric anchors
+      const refinedBuffer = await integrateGlassesWithGemini(
+        envReflectedBuffer,
+        frameAsset.frontRim,
+        faceGeometry,
+        transform,
+        { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
       );
 
       // Step 6b: Multi-angle generation
