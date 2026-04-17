@@ -1353,8 +1353,8 @@ FRAME INTEGRATION (do these in order):
 1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
 2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
 3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
-4. LENS INTEGRATION: The lenses are ${tintDesc}. The lens color must be CLEARLY VISIBLE and vibrant — this is a product showcase, the tint is a KEY selling feature. Preserve and ENHANCE the lens color saturation. Add subtle reflections matching the scene lighting. The lens tint must be immediately recognizable and match the product photo exactly. Do NOT make lenses too transparent or dark.
-5. NOSE BRIDGE CONTACT: Where the nose pads or bridge rest on the nose, render natural skin indentation and micro-shadows. The nose bridge area must look anatomically correct — no floating frame, no skin gaps.
+4. LENS INTEGRATION: The lenses are ${tintDesc}. The lens color must be CLEARLY VISIBLE and vibrant — this is a product showcase, the tint is a KEY selling feature. Preserve and ENHANCE the lens color saturation. The lens tint must be immediately recognizable and match the product photo exactly. Do NOT make lenses too transparent or dark. ABSOLUTELY NO glare, NO harsh specular highlights, NO white reflections on lenses — maximum one very subtle soft reflection allowed.
+5. NOSE BRIDGE CONTACT: The nose bridge or nose pads must sit NATURALLY on the nose — no floating frame. Render a very subtle skin compression where the bridge contacts the nose. The fit must look comfortable and anatomically correct, as if the person has been wearing the glasses for hours. No gaps between frame and skin.
 
 LIGHTING & SHADOWS:
 - Cast shadow from the frame onto the nose bridge and upper cheeks
