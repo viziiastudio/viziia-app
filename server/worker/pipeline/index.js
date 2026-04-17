@@ -1403,19 +1403,15 @@ CONTACT & SHADOWS:
         // Gemini changed dimensions — composite result centered on original buffer
         console.log(`   ⚠ Gemini returned ${geminiMeta.width}x${geminiMeta.height} vs expected ${imageSize.width}x${imageSize.height} — recomposing`);
         // Scale Gemini output to fit inside target, composite centered on original model
-        const scaleW = imageSize.width / geminiMeta.width;
-        const scaleH = imageSize.height / geminiMeta.height;
-        const scale = Math.min(scaleW, scaleH);
-        const fitW = Math.round(geminiMeta.width * scale);
-        const fitH = Math.round(geminiMeta.height * scale);
-        const offsetX = Math.round((imageSize.width - fitW) / 2);
-        const offsetY = Math.round((imageSize.height - fitH) / 2);
-        const scaledGemini = await sharp(geminiRaw)
-          .resize(fitW, fitH, { kernel: sharp.kernel.lanczos3 })
+        // Gemini returned wrong aspect — extract face zone and composite on original
+        const faceZoneW = Math.round(geminiMeta.width * (imageSize.width / Math.max(geminiMeta.width, imageSize.width)));
+        const faceZoneH = geminiMeta.height;
+        const faceLeft = Math.round((geminiMeta.width - faceZoneW) / 2);
+        const faceExtract = await sharp(geminiRaw)
+          .extract({ left: faceLeft, top: 0, width: faceZoneW, height: faceZoneH })
+          .resize(imageSize.width, imageSize.height, { fit: "fill", kernel: sharp.kernel.lanczos3 })
           .toBuffer();
-        geminiResult = await sharp(compositedBuffer)
-          .composite([{ input: scaledGemini, left: offsetX, top: offsetY }])
-          .toBuffer();
+        geminiResult = faceExtract;
       }
 
       // Tile sharpen — enhance frame zone only
