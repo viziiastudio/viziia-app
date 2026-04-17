@@ -1340,37 +1340,35 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
 
   // Drop raw pixel coords from prompt — visual composite does the spatial anchoring
   // Keep only physical descriptors per Gemini architecture analysis
-  const prompt = `You are a photorealistic eyewear compositing specialist. You are given:
-1. A portrait with eyewear geometrically placed at the exact correct position
-2. The original eyewear product photo for material and detail reference
+  const prompt = `ROLE: You are an expert high-end e-commerce photo retoucher specializing in optical eyewear.
 
-GEOMETRIC ANCHORS — preserve these exactly:
-- Left pupil center: x=${Math.round(leftPupil.x)}, y=${Math.round(leftPupil.y)}
-- Right pupil center: x=${Math.round(rightPupil.x)}, y=${Math.round(rightPupil.y)}
-- Frame bounding box: x=${frameBox.x}, y=${frameBox.y}, width=${frameBox.width}px, height=${frameBox.height}px
-- IPD: ${Math.round(ipdPx)}px
+INPUTS:
+Image 1: The target portrait. The eyewear is ALREADY perfectly positioned, sized, and scaled.
+Image 2: The original product reference.
 
-FRAME INTEGRATION (do these in order):
-1. FRAME TYPE: These are ${frameTypeDesc}. Use this to correctly render the frame shape, shadow casting, and how it sits on the face.
-1. FRAME BODY: Continuous solid wireframe, high-contrast metallic edge, unbroken contour, sharp focal plane on front frame. Match surface finish exactly — matte/brushed metal stays matte, glossy acetate stays glossy. Frame casts natural shadow on cheekbones and nose consistent with scene lighting direction. Same color temperature and ambient light as environment.
-2. TEMPLE ARMS: Temples cleanly occluded by hair and ears, accurate depth of field. The arm disappears behind the ear with correct depth — no floating temples, no hallucinated temples in frontal view.
-3. NOSE PADS: Natural skin compression where nose pads or bridge contact the nose. Subtle redness and micro-shadow at contact points. Frame sits as if worn for hours — no gaps between frame and skin.
-4. LENS INTEGRATION: The lenses are ${tintDesc}. Lens color must be CLEARLY VISIBLE and vibrant — this is a product showcase. Sub-surface scattering visible on skin behind colored lens. Specular highlight mapped to outer lens curvature only — ABSOLUTELY NO glare, NO harsh white reflections. Distinct physical separation between frame edge and cheekbone. Preserve exact tint color and saturation.
-5. ENVIRONMENTAL COHERENCE: Frame material, lens reflections, and shadows must match the exact lighting of this scene — same color temperature, same light direction, same atmospheric quality.
+TASK: Harmonize the lighting, materials, and contact points to create a flawless, photorealistic integration.
 
-LIGHTING & SHADOWS:
-- Cast shadow from the frame onto the nose bridge and upper cheeks
-- Soft shadow from temple arms onto the temples
-- Match the exact color temperature and lighting direction of the scene
-- Add subtle specular highlight on frame where light hits
+STRICT GEOMETRIC CONSTRAINTS:
+- ABSOLUTELY DO NOT move, resize, warp, or reshape the eyewear in Image 1.
+- DO NOT alter the model's facial features, expression, hair, or background.
+- Maintain the exact ${frameTypeDesc} shape.
 
-STRICT CONSTRAINTS:
-- Do NOT move or resize the frame — anchors are mathematically exact
-- Do NOT alter the face, skin tone, hair, or background
-- Do NOT add or remove any facial features
-- Output: ${imageSize.width}x${imageSize.height}px, same composition as input
+MATERIAL PHYSICS & FRAME (Thin Metal):
+- Render the frame as a rigid, continuous metallic structure with high-frequency edge contrast.
+- Maintain an unbroken, hard boundary between the metal frame and the skin. The frame must not blur or melt into the face.
+- Match the exact surface finish of Image 2. Apply a micro-specular glint to the metal where it catches the scene primary light.
 
-Output the portrait with the eyewear photorealistically integrated as if worn in real life.`;
+OPTICAL LENS INTEGRATION (${tintDesc}):
+- Render the lenses as curved optical glass with physical thickness, not a flat digital color filter.
+- Preserve the ${tintDesc} color and saturation from Image 2.
+- The skin behind the lens must show subsurface scattering and interact naturally with the tint.
+- Add subtle Fresnel reflections mapping only to the outer curvature of the glass. No harsh, opaque glare blocking the eyes.
+
+CONTACT & SHADOWS:
+- Nose Pads: Render realistic skin compression, micro-shadows, and subtle skin warmth where the pads rest on the nose. No floating gaps.
+- Occlusion: Temple arms must tuck cleanly behind hair and ears with an accurate, natural depth of field.
+- Cast Shadows: The frame and temples must cast a soft, directional shadow onto the cheekbones, nose, and temples that perfectly matches the ambient color temperature and light direction of the surrounding scene.`;
+
 
   const response = await withExponentialBackoff(() => axios.post(endpoint, {
     contents: [{
