@@ -1395,9 +1395,12 @@ CONTACT & SHADOWS:
       const geminiRaw = Buffer.from(part.inlineData.data, "base64");
 
       // Force back to original dimensions — Gemini sometimes reframes
-      const geminiResult = await sharp(geminiRaw)
-        .resize(imageSize.width, imageSize.height, { fit: "cover", position: "centre" })
-        .toBuffer();
+      const geminiMeta = await sharp(geminiRaw).metadata();
+      const geminiResult = (geminiMeta.width === imageSize.width && geminiMeta.height === imageSize.height)
+        ? geminiRaw
+        : await sharp(geminiRaw)
+            .resize(imageSize.width, imageSize.height, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+            .toBuffer();
 
       // Tile sharpen — enhance frame zone only
       try {
