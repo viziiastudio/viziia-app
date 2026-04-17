@@ -626,7 +626,10 @@ async function renderFrameLayers(baseModelBuffer, frameAsset, faceGeometry, tran
     .extract({ left: cropLeft, top: 0, width: cropW, height: cropH })
     .toBuffer();
   const rimResized = await sharp(rimCropped)
-    .resize(frameBox.width, frameBox.height, { fit: "fill" })
+    .resize(frameBox.width, frameBox.height, { 
+      fit: "contain", 
+      background: { r: 0, g: 0, b: 0, alpha: 0 } 
+    })
     .png().toBuffer();
 
   let rimFinal = rimResized;
