@@ -1392,7 +1392,12 @@ CONTACT & SHADOWS:
   for (const part of parts) {
     if (part.inlineData) {
       console.log("   ✓ Gemini integration complete");
-      const geminiResult = Buffer.from(part.inlineData.data, "base64");
+      const geminiRaw = Buffer.from(part.inlineData.data, "base64");
+
+      // Force back to original dimensions — Gemini sometimes reframes
+      const geminiResult = await sharp(geminiRaw)
+        .resize(imageSize.width, imageSize.height, { fit: "cover", position: "centre" })
+        .toBuffer();
 
       // Tile sharpen — enhance frame zone only
       try {
