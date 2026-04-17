@@ -1402,11 +1402,21 @@ CONTACT & SHADOWS:
       } else {
         // Gemini changed dimensions — composite result centered on original buffer
         console.log(`   ⚠ Gemini returned ${geminiMeta.width}x${geminiMeta.height} vs expected ${imageSize.width}x${imageSize.height} — recomposing`);
-        const resized = await sharp(geminiRaw)
-          .resize(imageSize.width, imageSize.height, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .toBuffer();
-        geminiResult = await sharp(compositedBuffer)
-          .composite([{ input: resized, left: 0, top: 0 }])
+        // Crop to same aspect ratio then resize — avoids padding artifacts
+        const targetRatio = imageSize.width / imageSize.height;
+        const srcRatio = geminiMeta.width / geminiMeta.height;
+        let cropW = geminiMeta.width;
+        let cropH = geminiMeta.height;
+        if (srcRatio > targetRatio) {
+          cropW = Math.round(geminiMeta.height * targetRatio);
+        } else {
+          cropH = Math.round(geminiMeta.width / targetRatio);
+        }
+        const cropLeft = Math.round((geminiMeta.width - cropW) / 2);
+        const cropTop = Math.round((geminiMeta.height - cropH) / 2);
+        geminiResult = await sharp(geminiRaw)
+          .extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH })
+          .resize(imageSize.width, imageSize.height, { kernel: sharp.kernel.lanczos3 })
           .toBuffer();
       }
 
