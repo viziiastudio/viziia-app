@@ -1261,7 +1261,7 @@ async function applyEnvironmentReflection(compositedBuffer, baseModelBuffer, tra
       .toBuffer();
 
     // Reflection strength based on lens type
-    const reflectionOpacity = isMirror ? 0.35 : (1 - transmission) * 0.15;
+    const reflectionOpacity = isMirror ? 0.35 : (1 - transmission) * 0.05;
     if (reflectionOpacity < 0.02) return compositedBuffer; // Too subtle — skip
 
     // Apply environment reflection on both lenses
