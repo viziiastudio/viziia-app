@@ -1204,7 +1204,7 @@ async function applyLensDisplacement(compositedBuffer, transform, lensParams) {
   // IOR micro-displacement — simulates how lenses optically shift the face behind them
   // Only applies for optical lenses (transmission > 0.7 = clear/light tint)
   const transmission = lensParams?.transmission ?? 0.9;
-  if (transmission < 0.7) return compositedBuffer; // Dark sunglasses — skip
+  if (transmission < 0.5) return compositedBuffer; // Dark sunglasses only — skip for light tints
 
   try {
     const { leftLensBox, rightLensBox } = transform;
@@ -1331,7 +1331,7 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const tintDesc = {
     clear: "perfectly clear transparent lenses with no color",
     grey: "dark grey tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
-    brown: "warm amber/brown semi-transparent tinted lenses, " + Math.round(transmission*100) + "% light transmission — eyes clearly visible through lenses, natural amber color tint",
+    brown: "warm light amber/honey tinted lenses, very light tint, " + Math.round(transmission*100) + "% light transmission — eyes fully visible through lenses, bright natural amber color, NOT dark sunglasses",
     green: "green tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     blue: "blue tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     rose: "pink/rose tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
