@@ -1405,8 +1405,14 @@ CONTACT & SHADOWS:
         // Scale Gemini output to fit inside target, composite centered on original model
         // Gemini returned wrong aspect — extract square centered on frame zone
         const squareSize = Math.min(geminiMeta.width, geminiMeta.height);
-        // Center crop horizontally on image center (not frameBox) for consistent framing
-        let squareLeft = Math.round((geminiMeta.width - squareSize) / 2);
+        // Position crop based on face center in Gemini output
+        const scaleX = geminiMeta.width / imageSize.width;
+        const faceCenterX = Math.round((frameBox.x + frameBox.width / 2) * scaleX);
+        // Keep face centered but clamp to valid range
+        let squareLeft = Math.max(0, Math.min(
+          faceCenterX - Math.round(squareSize / 2),
+          geminiMeta.width - squareSize
+        ));
         const squareTop = 0; // Start from top to preserve head
         geminiResult = await sharp(geminiRaw)
           .extract({ left: squareLeft, top: squareTop, width: squareSize, height: squareSize })
