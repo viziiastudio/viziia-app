@@ -1350,7 +1350,7 @@ GEOMETRIC ANCHORS — preserve these exactly:
 
 FRAME INTEGRATION (do these in order):
 1. FRAME TYPE: These are ${frameTypeDesc}. Use this to correctly render the frame shape, shadow casting, and how it sits on the face.
-1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin
+1. FRAME BODY: Integrate the rim and frame body naturally — match surface finish (matte/glossy), add micro-shadows where frame meets skin. The frame must cast a natural shadow on the cheekbones and nose consistent with the scene lighting direction. The glasses must look like they belong in this exact environment — same color temperature, same ambient light, same atmospheric haze if any.
 2. NOSE PADS: Add subtle skin compression and redness where nose pads press against the nose bridge. Add a small cast shadow below each pad
 3. TEMPLE ARMS: Blend temple arms behind ears and hair with natural occlusion — the arm should disappear behind the ear with correct depth
 4. LENS INTEGRATION: The lenses are ${tintDesc}. The lens color must be CLEARLY VISIBLE and vibrant — this is a product showcase, the tint is a KEY selling feature. Preserve and ENHANCE the lens color saturation. The lens tint must be immediately recognizable and match the product photo exactly. Do NOT make lenses too transparent or dark. ABSOLUTELY NO glare, NO harsh specular highlights, NO white reflections on lenses — maximum one very subtle soft reflection allowed.
