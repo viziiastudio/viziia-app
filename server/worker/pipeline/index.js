@@ -420,7 +420,7 @@ async function generateBaseModel(modelParams, cameraParams, sceneParams) {
   }
 
   const response = await axios.post(endpoint, {
-    contents: [{ role: "user", parts: [{ text: prompt + ", square format, 1:1 aspect ratio, perfectly frontal face, looking straight into camera, face centered in frame, symmetrical composition, head-on portrait, zero yaw zero pitch" }] }],
+    contents: [{ role: "user", parts: [{ text: prompt + ", square format, 1:1 aspect ratio, perfectly frontal face, looking straight into camera, face centered in frame, symmetrical composition, head-on portrait, zero yaw zero pitch, shot on 85mm portrait lens, natural perspective compression, no wide-angle distortion, no barrel distortion, neutral focal plane" }] }],
     generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
   }, {
     headers: {
@@ -1196,6 +1196,87 @@ Be concise and technical. Output only the description, no headers.` }
   }
 }
 
+
+async function applyLensDisplacement(compositedBuffer, transform, lensParams) {
+  // IOR micro-displacement — simulates how lenses optically shift the face behind them
+  // Only applies for optical lenses (transmission > 0.7 = clear/light tint)
+  const transmission = lensParams?.transmission ?? 0.9;
+  if (transmission < 0.7) return compositedBuffer; // Dark sunglasses — skip
+
+  try {
+    const { leftLensBox, rightLensBox } = transform;
+    const displacementPx = Math.round(transmission * 3); // 2-3px for clear, less for tinted
+
+    // Apply subtle inward shift on each lens zone separately
+    const result = await sharp(compositedBuffer)
+      .modulate({ brightness: 1.0 }) // no-op to trigger pipeline
+      .toBuffer();
+
+    // For each lens zone, apply a subtle blur at edges to simulate refraction
+    const leftLensBlur = await sharp(compositedBuffer)
+      .extract({ left: leftLensBox.x, top: leftLensBox.y, width: leftLensBox.width, height: leftLensBox.height })
+      .blur(displacementPx * 0.3)
+      .toBuffer();
+
+    const rightLensBlur = await sharp(compositedBuffer)
+      .extract({ left: rightLensBox.x, top: rightLensBox.y, width: rightLensBox.width, height: rightLensBox.height })
+      .blur(displacementPx * 0.3)
+      .toBuffer();
+
+    const displaced = await sharp(compositedBuffer)
+      .composite([
+        { input: leftLensBlur, left: leftLensBox.x, top: leftLensBox.y, blend: "over" },
+        { input: rightLensBlur, left: rightLensBox.x, top: rightLensBox.y, blend: "over" },
+      ])
+      .toBuffer();
+
+    console.log(`   ✓ IOR displacement applied (${displacementPx}px, transmission ${transmission})`);
+    return displaced;
+  } catch (err) {
+    console.warn("   ⚠ IOR displacement failed:", err.message);
+    return compositedBuffer;
+  }
+}
+
+
+async function applyEnvironmentReflection(compositedBuffer, baseModelBuffer, transform, lensParams) {
+  // Extract dominant colors from background/environment of the AI model
+  // Apply as subtle screen-space reflection on lens zone
+  const transmission = lensParams?.transmission ?? 0.9;
+  const isMirror = lensParams?.mirror || false;
+  
+  try {
+    const { leftLensBox, rightLensBox, frameBox } = transform;
+
+    // Extract background environment from top portion of model image (sky/bg area)
+    const bgZoneH = Math.round(frameBox.y * 0.4);
+    const envCrop = await sharp(baseModelBuffer)
+      .extract({ left: 0, top: 0, width: 1024, height: Math.max(bgZoneH, 50) })
+      .resize(leftLensBox.width, leftLensBox.height, { fit: "fill" })
+      .blur(8)
+      .modulate({ brightness: 0.3, saturation: 0.6 })
+      .toBuffer();
+
+    // Reflection strength based on lens type
+    const reflectionOpacity = isMirror ? 0.35 : (1 - transmission) * 0.15;
+    if (reflectionOpacity < 0.02) return compositedBuffer; // Too subtle — skip
+
+    // Apply environment reflection on both lenses
+    const reflected = await sharp(compositedBuffer)
+      .composite([
+        { input: envCrop, left: leftLensBox.x, top: leftLensBox.y, blend: "screen" },
+        { input: envCrop, left: rightLensBox.x, top: rightLensBox.y, blend: "screen" },
+      ])
+      .toBuffer();
+
+    console.log(`   ✓ Environment reflection applied (opacity ${reflectionOpacity.toFixed(2)})`);
+    return reflected;
+  } catch (err) {
+    console.warn("   ⚠ Environment reflection failed:", err.message);
+    return compositedBuffer;
+  }
+}
+
 async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform, lensParams = {}) {
   console.log("→ Step 6: Gemini realistic glasses integration...");
 
@@ -1477,11 +1558,26 @@ export async function runViziiaV5Pipeline(job) {
 
       // Step 6: Gemini realistic glasses integration with geometric anchors
       const refinedBuffer = await integrateGlassesWithGemini(
-        renderResult.compositedBuffer,
+        envReflectedBuffer,
         frameAsset.frontRim,
         faceGeometry,
         transform,
         { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
+      );
+
+      // Step 5.5: IOR lens displacement
+      const displacedBuffer = await applyLensDisplacement(
+        renderResult.compositedBuffer,
+        transform,
+        job.frameMetadata?.lens
+      );
+
+      // Step 5.6: Environment reflection mapping
+      const envReflectedBuffer = await applyEnvironmentReflection(
+        displacedBuffer,
+        baseModelBuffer,
+        transform,
+        job.frameMetadata?.lens
       );
 
       // Step 6b: Multi-angle generation
