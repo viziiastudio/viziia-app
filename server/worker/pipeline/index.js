@@ -1403,15 +1403,14 @@ CONTACT & SHADOWS:
         // Gemini changed dimensions — composite result centered on original buffer
         console.log(`   ⚠ Gemini returned ${geminiMeta.width}x${geminiMeta.height} vs expected ${imageSize.width}x${imageSize.height} — recomposing`);
         // Scale Gemini output to fit inside target, composite centered on original model
-        // Gemini returned wrong aspect — extract face zone and composite on original
-        const faceZoneW = Math.round(geminiMeta.width * (imageSize.width / Math.max(geminiMeta.width, imageSize.width)));
-        const faceZoneH = geminiMeta.height;
-        const faceLeft = Math.round((geminiMeta.width - faceZoneW) / 2);
-        const faceExtract = await sharp(geminiRaw)
-          .extract({ left: faceLeft, top: 0, width: faceZoneW, height: faceZoneH })
-          .resize(imageSize.width, imageSize.height, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+        // Gemini returned wrong aspect — extract largest square from top-center
+        const squareSize = Math.min(geminiMeta.width, geminiMeta.height);
+        const squareLeft = Math.round((geminiMeta.width - squareSize) / 2);
+        const squareTop = 0; // Start from top to preserve head
+        geminiResult = await sharp(geminiRaw)
+          .extract({ left: squareLeft, top: squareTop, width: squareSize, height: squareSize })
+          .resize(imageSize.width, imageSize.height, { kernel: sharp.kernel.lanczos3 })
           .toBuffer();
-        geminiResult = faceExtract;
       }
 
       // Tile sharpen — enhance frame zone only
