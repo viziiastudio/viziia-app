@@ -1331,7 +1331,7 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const tintDesc = {
     clear: "perfectly clear transparent lenses with no color",
     grey: "dark grey tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
-    brown: "warm light amber/honey tinted lenses, very light tint, " + Math.round(transmission*100) + "% light transmission — eyes fully visible through lenses, bright natural amber color, NOT dark sunglasses",
+    brown: "warm amber/honey tinted lenses with rich golden-amber color, " + Math.round(transmission*100) + "% light transmission — eyes visible through lenses, saturated warm amber tint that is clearly noticeable as a product feature",
     green: "green tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     blue: "blue tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     rose: "pink/rose tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
@@ -1366,7 +1366,7 @@ LENSES (${tintDesc}):
 
 CONTACT & SHADOWS:
 - Nose bridge: realistic skin compression, micro-shadows, no floating gaps
-- Temples: tuck cleanly behind hair and ears with natural depth of field
+- Temples: one temple arm visible going back toward ear on 3/4 views, tucking naturally behind ear with correct perspective foreshortening and depth of field — render the visible temple arm with accurate metallic finish matching Image 2
 - Cast soft directional shadows on cheekbones and nose matching scene lighting
 
 OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical composition to Image 1.`;
