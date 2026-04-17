@@ -1331,7 +1331,7 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const tintDesc = {
     clear: "perfectly clear transparent lenses with no color",
     grey: "dark grey tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
-    brown: "warm amber/brown tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
+    brown: "warm amber/brown semi-transparent tinted lenses, " + Math.round(transmission*100) + "% light transmission — eyes clearly visible through lenses, natural amber color tint",
     green: "green tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     blue: "blue tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     rose: "pink/rose tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
@@ -1403,9 +1403,12 @@ CONTACT & SHADOWS:
         // Gemini changed dimensions — composite result centered on original buffer
         console.log(`   ⚠ Gemini returned ${geminiMeta.width}x${geminiMeta.height} vs expected ${imageSize.width}x${imageSize.height} — recomposing`);
         // Scale Gemini output to fit inside target, composite centered on original model
-        // Gemini returned wrong aspect — extract largest square from top-center
+        // Gemini returned wrong aspect — extract square centered on frame zone
         const squareSize = Math.min(geminiMeta.width, geminiMeta.height);
-        const squareLeft = Math.round((geminiMeta.width - squareSize) / 2);
+        // Scale frameBox center to Gemini output dimensions
+        const scaleX = geminiMeta.width / imageSize.width;
+        const frameCenterXInGemini = Math.round((frameBox.x + frameBox.width / 2) * scaleX);
+        let squareLeft = Math.max(0, Math.min(frameCenterXInGemini - Math.round(squareSize / 2), geminiMeta.width - squareSize));
         const squareTop = 0; // Start from top to preserve head
         geminiResult = await sharp(geminiRaw)
           .extract({ left: squareLeft, top: squareTop, width: squareSize, height: squareSize })
