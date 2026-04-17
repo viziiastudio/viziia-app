@@ -1597,8 +1597,13 @@ export async function runViziiaV5Pipeline(job) {
             const angleModel = await generateAngleVariant(baseModel, angle, jobId);
             // Use 3/4 SKU photo if provided
             if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
+              const isLeft = angle.includes("left");
               frameAsset = await decomposeFrameAsset(
-                { front: clientPhotos.threeQuarter },
+                {
+                  front: clientPhotos.threeQuarter,
+                  left45: isLeft ? clientPhotos.threeQuarter : null,
+                  right45: isLeft ? null : clientPhotos.threeQuarter,
+                },
                 frameMetadata, jobId
               );
             }
