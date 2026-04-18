@@ -1343,13 +1343,13 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
   const compositeB64 = compositeCompressed.toString("base64");
 
-  // Build inpainting mask
-  const maskBuffer = await buildInpaintingMask(imageSize, { frameBox, leftLensBox: transform.leftLensBox || { x: frameBox.x, y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height }, rightLensBox: transform.rightLensBox || { x: frameBox.x + Math.round(frameBox.width*0.6), y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height } }, faceGeometry);
-  const maskB64 = maskBuffer.toString("base64");
-
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
   const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
+
+  // Build inpainting mask
+  const maskBuffer = await buildInpaintingMask(imageSize, { frameBox, leftLensBox: transform.leftLensBox || { x: frameBox.x, y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height }, rightLensBox: transform.rightLensBox || { x: frameBox.x + Math.round(frameBox.width*0.6), y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height } }, faceGeometry);
+  const maskB64 = maskBuffer.toString("base64");
   const { frameBox } = transform;
   // ── Frame type detection ──────────────────────────────────────────────────
   const fw = lensParams.frameWidthMm || 135;
