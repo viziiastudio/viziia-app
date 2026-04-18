@@ -1572,60 +1572,6 @@ async function decomposeAndAlignTemple(skuBuffer, angleFaceGeo, angle) {
 }
 
 
-async function decomposeAndAlignTemple(skuBuffer, angleFaceGeo, angle) {
-  console.log("   → Hinge detection + temple alignment...");
-  try {
-    const side = angle.includes("left") ? "left" : "right";
-    const skuB64 = skuBuffer.toString("base64");
-
-    // Call sidecar hinge-temple endpoint
-    const response = await axios.post(
-      `${MEDIAPIPE_URL}/hinge-temple`,
-      { image_b64: skuB64, side },
-      { timeout: 15000 }
-    );
-
-    const { hinge_x, hinge_y, rim_b64, temple_b64, temple_tip, rim_size, temple_size } = response.data;
-
-    const rimBuffer = Buffer.from(rim_b64, "base64");
-    const templeBuffer = Buffer.from(temple_b64, "base64");
-
-    // Get ear landmark
-    const ear = side === "left" ? angleFaceGeo.leftEar : angleFaceGeo.rightEar;
-    const templeAnchor = side === "left" ? angleFaceGeo.leftTempleAnchor : angleFaceGeo.rightTempleAnchor;
-
-    if (!ear || !templeAnchor) {
-      console.warn("   ⚠ No ear landmark — skipping temple alignment");
-      return null;
-    }
-
-    // Calculate rotation angle θ
-    // Hinge in composite space = templeAnchor from MediaPipe
-    const H = templeAnchor;
-    const E = ear;
-    const T = {
-      x: H.x + (side === "left" ? temple_size.w : -temple_size.w),
-      y: H.y
-    };
-
-    const thetaTarget = Math.atan2(E.y - H.y, E.x - H.x);
-    const thetaCurrent = Math.atan2(T.y - H.y, T.x - H.x);
-    const theta = (thetaTarget - thetaCurrent) * (180 / Math.PI);
-
-    console.log(`   → Temple rotation: ${theta.toFixed(1)}° toward ear at (${Math.round(E.x)}, ${Math.round(E.y)})`);
-
-    // Rotate temple around hinge point
-    const rotatedTemple = await sharp(templeBuffer)
-      .rotate(theta, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png().toBuffer();
-
-    return { rimBuffer, rotatedTemple, hinge: H, ear: E, side };
-  } catch (err) {
-    console.warn("   ⚠ Temple alignment failed:", err.message);
-    return null;
-  }
-}
-
 async function compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle) {
   console.log(`   → Compositing full 3/4 SKU frame as single unit...`);
   try {
