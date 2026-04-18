@@ -1280,6 +1280,44 @@ async function applyEnvironmentReflection(compositedBuffer, baseModelBuffer, tra
   }
 }
 
+
+async function buildInpaintingMask(imageSize, transform, faceGeometry) {
+  const { width, height } = imageSize;
+  const { frameBox, leftLensBox, rightLensBox } = transform;
+  const { leftEar, rightEar } = faceGeometry;
+
+  const mask = Buffer.alloc(width * height * 3, 0);
+  
+  const setRect = (x1, y1, x2, y2, value) => {
+    for (let y = Math.max(0, y1); y < Math.min(height, y2); y++) {
+      for (let x = Math.max(0, x1); x < Math.min(width, x2); x++) {
+        const idx = (y * width + x) * 3;
+        mask[idx] = mask[idx+1] = mask[idx+2] = value;
+      }
+    }
+  };
+
+  // Nose bridge
+  setRect(leftLensBox.x + leftLensBox.width - 5, frameBox.y + Math.round(frameBox.height * 0.3),
+          rightLensBox.x + 5, frameBox.y + Math.round(frameBox.height * 0.8), 255);
+
+  // Frame border shadow band
+  const pad = 8;
+  setRect(frameBox.x - pad, frameBox.y - pad, frameBox.x + frameBox.width + pad, frameBox.y + frameBox.height + pad, 200);
+  setRect(frameBox.x + 2, frameBox.y + 2, frameBox.x + frameBox.width - 2, frameBox.y + frameBox.height - 2, 0);
+
+  // Ear contact zones
+  if (leftEar) setRect(leftEar.x - 30, leftEar.y - 20, leftEar.x + 30, leftEar.y + 40, 255);
+  if (rightEar) setRect(rightEar.x - 30, rightEar.y - 20, rightEar.x + 30, rightEar.y + 40, 255);
+
+  // Cheekbone shadow
+  setRect(frameBox.x, frameBox.y + frameBox.height, frameBox.x + frameBox.width, frameBox.y + frameBox.height + 20, 200);
+
+  const maskBuffer = await sharp(mask, { raw: { width, height, channels: 3 } }).png().toBuffer();
+  console.log("   ✓ Inpainting mask built");
+  return maskBuffer;
+}
+
 async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform, lensParams = {}) {
   console.log("→ Step 6: Gemini realistic glasses integration...");
 
@@ -1304,6 +1342,10 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   // Compress composite for Gemini
   const compositeCompressed = await sharp(compositedBuffer).jpeg({ quality: 85 }).toBuffer();
   const compositeB64 = compositeCompressed.toString("base64");
+
+  // Build inpainting mask
+  const maskBuffer = await buildInpaintingMask(imageSize, { frameBox, leftLensBox: transform.leftLensBox || { x: frameBox.x, y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height }, rightLensBox: transform.rightLensBox || { x: frameBox.x + Math.round(frameBox.width*0.6), y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height } }, faceGeometry);
+  const maskB64 = maskBuffer.toString("base64");
 
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${process.env.GCP_PROJECT_ID}/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent`;
 
@@ -1378,7 +1420,8 @@ OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical compos
       parts: [
         { inlineData: { mimeType: "image/png", data: compositeB64 } },
         { inlineData: { mimeType: "image/png", data: frameB64 } },
-        { text: prompt }
+        { inlineData: { mimeType: "image/png", data: maskB64 } },
+        { text: prompt + "\n\nINPAINTING MASK: Image 3 is a grayscale mask. WHITE areas = zones you must blend/inpaint (shadows, contact points, ear occlusion). BLACK areas = locked SKU pixels you must preserve exactly — do NOT alter any pixels in black mask zones." }
       ]
     }],
     generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
