@@ -1472,6 +1472,52 @@ async function withExponentialBackoff(fn, maxAttempts = 4, baseDelayMs = 2000) {
 // MULTI-ANGLE GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+async function compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle) {
+  console.log(`   → Compositing full 3/4 SKU frame as single unit...`);
+  try {
+    const { leftPupil, rightPupil, ipdPx, imageSize } = angleFaceGeo;
+    
+    // Use the full frontRim from udm-2 (already correct 3/4 perspective)
+    const fullFrame = frameAsset.frontRim;
+    const frameMeta = await sharp(fullFrame).metadata();
+    
+    // Scale frame to match IPD — use same ratio as calculateFrameTransform
+    const FRAME_TO_FACE_RATIO = 0.90;
+    const faceWidthPx = angleFaceGeo.faceWidthPx;
+    const frameWidthPx = Math.round(faceWidthPx * FRAME_TO_FACE_RATIO);
+    const scaleRatio = frameWidthPx / frameMeta.width;
+    const scaledW = Math.round(frameMeta.width * scaleRatio);
+    const scaledH = Math.round(frameMeta.height * scaleRatio);
+    
+    const scaledFrame = await sharp(fullFrame)
+      .resize(scaledW, scaledH, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png().toBuffer();
+    
+    // Position: center on pupils, offset up by ~60% of lens height
+    const frameCenterX = (leftPupil.x + rightPupil.x) / 2;
+    const lensHeightPx = Math.round(scaledH * 0.45); // approximate lens zone
+    const frameTopY = Math.round(leftPupil.y - lensHeightPx * 0.60);
+    
+    const left = Math.round(frameCenterX - scaledW / 2);
+    const top = Math.round(frameTopY);
+    
+    // Clamp to image bounds
+    const safeLeft = Math.max(0, left);
+    const safeTop = Math.max(0, top);
+    
+    const composited = await sharp(angleModel)
+      .composite([{ input: scaledFrame, left: safeLeft, top: safeTop, blend: "over" }])
+      .toBuffer();
+    
+    console.log(`   ✓ Full 3/4 frame composited at (${safeLeft}, ${safeTop}) ${scaledW}x${scaledH}px`);
+    return { compositedBuffer: composited, frameBox: { x: safeLeft, y: safeTop, width: scaledW, height: scaledH } };
+  } catch (err) {
+    console.warn(`   ⚠ Full frame composite failed: ${err.message}`);
+    return null;
+  }
+}
+
 async function generateAngleVariant(frontModelBuffer, angle, jobId) {
   console.log(`→ Generating ${angle} angle variant...`);
 
@@ -1650,10 +1696,27 @@ export async function runViziiaV5Pipeline(job) {
                 console.warn("   ⚠ calculateFrameTransform failed:", e.message);
                 throw e;
               }
-              const angleRender = await renderFrameLayers(angleModel, frameAsset, angleFaceGeo, angleTransform);
+              let angleComposite;
+              let angleRefinedTransform = angleTransform;
+
+              // Point 1: Use full 3/4 SKU as single unit if threeQuarter photo provided
+              if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
+                const fullComposite = await compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle);
+                if (fullComposite) {
+                  angleComposite = fullComposite.compositedBuffer;
+                  angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
+                }
+              }
+
+              // Fallback to standard render if full composite failed
+              if (!angleComposite) {
+                const angleRender = await renderFrameLayers(angleModel, frameAsset, angleFaceGeo, angleTransform);
+                angleComposite = angleRender.compositedBuffer;
+              }
+
               const angleRefined = await integrateGlassesWithGemini(
-                angleRender.compositedBuffer, frameAsset.frontRim,
-                angleFaceGeo, angleTransform,
+                angleComposite, frameAsset.frontRim,
+                angleFaceGeo, angleRefinedTransform,
                 { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
               );
               angleBuffers[angle] = angleRefined;
