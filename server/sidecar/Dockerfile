@@ -13,4 +13,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY mediapipe_sidecar.py .
-CMD ["python", "mediapipe_sidecar.py"]
+CMD ["uvicorn", "mediapipe_sidecar:app", "--host", "0.0.0.0", "--port", "8000"]
