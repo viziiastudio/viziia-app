@@ -298,3 +298,184 @@ def face_occlude(req: OccludeRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+class SegmentRequest(BaseModel):
+    image_b64: str
+    side: str = "left"  # near-side: "left" or "right"
+
+@app.post("/segment-frame")
+def segment_frame(req: SegmentRequest):
+    """
+    Segment a 3/4 SKU photo into 3 layers:
+    - front_frame (rim + bridge + lenses)
+    - near_temple
+    - far_temple
+    Uses Harris hinge detection + connected components.
+    """
+    try:
+        img_bytes = base64.b64decode(req.image_b64)
+        img_arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(img_arr, cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Could not decode image")
+        if img.dtype == np.uint16:
+            img = (img >> 8).astype(np.uint8)
+
+        h, w = img.shape[:2]
+        alpha = img[:, :, 3] if img.shape[2] == 4 else np.ones((h, w), np.uint8) * 255
+        bgr = img[:, :, :3]
+
+        # --- Harris hinge detection ---
+        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        gray_float = np.float32(gray)
+        corners = cv2.cornerHarris(gray_float, 5, 3, 0.04)
+        corners = cv2.dilate(corners, None)
+        threshold = 0.01 * corners.max()
+        corner_pts = np.where(corners > threshold)
+
+        nonzero = np.where(alpha > 10)
+        if len(nonzero[0]) == 0:
+            raise HTTPException(status_code=400, detail="No frame detected")
+
+        x_min, x_max = int(np.min(nonzero[1])), int(np.max(nonzero[1]))
+
+        # Hinge on lateral edge — right side for "left" 3/4 view
+        lateral_x = x_max if req.side == "left" else x_min
+        hinge_candidates = [
+            (int(corner_pts[1][i]), int(corner_pts[0][i]))
+            for i in range(len(corner_pts[0]))
+            if abs(corner_pts[1][i] - lateral_x) < w * 0.15
+        ]
+
+        if hinge_candidates:
+            hinge_x = int(np.median([p[0] for p in hinge_candidates]))
+            hinge_y = int(np.median([p[1] for p in hinge_candidates]))
+        else:
+            hinge_x = lateral_x - w // 5 if req.side == "left" else lateral_x + w // 5
+            hinge_y = h // 2
+
+        # --- Cut at hinge + connected components ---
+        cut_mask = alpha.copy()
+        # Cut a vertical slice at hinge to separate components
+        cut_w = max(3, int(w * 0.008))
+        if req.side == "left":
+            cut_mask[:, hinge_x - cut_w:hinge_x + cut_w] = 0
+        else:
+            cut_mask[:, hinge_x - cut_w:hinge_x + cut_w] = 0
+
+        binary = (cut_mask > 10).astype(np.uint8)
+        num_labels, labels = cv2.connectedComponents(binary)
+
+        # Identify components by X position
+        components = {}
+        for label in range(1, num_labels):
+            mask = (labels == label).astype(np.uint8)
+            cols = np.where(np.any(mask, axis=0))[0]
+            if len(cols) == 0:
+                continue
+            cx = int(np.mean(cols))
+            components[label] = {"mask": mask, "cx": cx, "size": int(mask.sum())}
+
+        if not components:
+            raise HTTPException(status_code=400, detail="No components found")
+
+        # Sort by size — largest is front frame
+        sorted_by_size = sorted(components.items(), key=lambda x: x[1]["size"], reverse=True)
+        front_label = sorted_by_size[0][0]
+
+        # Near temple = component on far-lateral side
+        # Far temple = component on opposite side
+        remaining = [(lbl, info) for lbl, info in sorted_by_size[1:]]
+
+        if req.side == "left":
+            # near temple is rightmost (high cx)
+            remaining_sorted = sorted(remaining, key=lambda x: x[1]["cx"], reverse=True)
+        else:
+            # near temple is leftmost (low cx)
+            remaining_sorted = sorted(remaining, key=lambda x: x[1]["cx"])
+
+        near_label = remaining_sorted[0][0] if remaining_sorted else None
+        far_label = remaining_sorted[1][0] if len(remaining_sorted) > 1 else None
+
+        def extract_layer(mask):
+            layer = np.zeros_like(img)
+            layer[:, :, :3] = bgr
+            layer[:, :, 3] = (mask * alpha).astype(np.uint8)
+            # Tight crop
+            rows = np.any(layer[:, :, 3] > 10, axis=1)
+            cols = np.any(layer[:, :, 3] > 10, axis=0)
+            if not rows.any() or not cols.any():
+                return None, 0, 0, 0, 0
+            rmin, rmax = np.where(rows)[0][[0, -1]]
+            cmin, cmax = np.where(cols)[0][[0, -1]]
+            cropped = layer[rmin:rmax+1, cmin:cmax+1]
+            _, enc = cv2.imencode('.png', cropped)
+            return base64.b64encode(enc.tobytes()).decode(), int(cmin), int(rmin), int(cmax-cmin+1), int(rmax-rmin+1)
+
+        front_b64, fx, fy, fw, fh = extract_layer(components[front_label]["mask"])
+        near_b64, nx, ny, nw, nh = extract_layer(components[near_label]["mask"]) if near_label else (None, 0, 0, 0, 0)
+        far_b64, farx, fary, farw, farh = extract_layer(components[far_label]["mask"]) if far_label else (None, 0, 0, 0, 0)
+
+        return {
+            "hinge": {"x": hinge_x, "y": hinge_y},
+            "front_frame": {"b64": front_b64, "x": fx, "y": fy, "w": fw, "h": fh},
+            "near_temple": {"b64": near_b64, "x": nx, "y": ny, "w": nw, "h": nh} if near_b64 else None,
+            "far_temple": {"b64": far_b64, "x": farx, "y": fary, "w": farw, "h": farh} if far_b64 else None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/centerline-temple")
+def centerline_temple(req: ImageRequest):
+    """
+    Extract centerline of a temple arm via skeletonization.
+    Returns ordered list of points from hinge to tip.
+    """
+    try:
+        from skimage.morphology import skeletonize
+        from skimage.measure import label as sk_label
+
+        img_bytes = base64.b64decode(req.image_b64)
+        img_arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(img_arr, cv2.IMREAD_UNCHANGED)
+        if img.dtype == np.uint16:
+            img = (img >> 8).astype(np.uint8)
+
+        h, w = img.shape[:2]
+        alpha = img[:, :, 3] if img.shape[2] == 4 else np.ones((h, w), np.uint8) * 255
+
+        # Binary mask
+        binary = (alpha > 10).astype(np.uint8)
+
+        # Skeletonize
+        skeleton = skeletonize(binary).astype(np.uint8)
+
+        # Get skeleton points
+        pts = np.column_stack(np.where(skeleton > 0))  # (y, x)
+        if len(pts) == 0:
+            return {"centerline": [], "tip": None, "hinge_end": None}
+
+        # Order from leftmost to rightmost (hinge = left, tip = right)
+        pts_xy = [(int(p[1]), int(p[0])) for p in pts]
+        pts_xy.sort(key=lambda p: p[0])
+
+        # Subsample to max 50 points
+        step = max(1, len(pts_xy) // 50)
+        sampled = pts_xy[::step]
+
+        return {
+            "centerline": [{"x": p[0], "y": p[1]} for p in sampled],
+            "hinge_end": {"x": sampled[0][0], "y": sampled[0][1]},
+            "tip": {"x": sampled[-1][0], "y": sampled[-1][1]},
+            "total_points": len(pts_xy)
+        }
+
+    except ImportError:
+        raise HTTPException(status_code=500, detail="skimage not installed — run: pip install scikit-image")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
