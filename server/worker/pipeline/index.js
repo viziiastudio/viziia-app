@@ -1347,10 +1347,11 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
 
   const { leftPupil, rightPupil, ipdPx, imageSize } = faceGeometry;
 
+  const { frameBox } = transform;
+
   // Build inpainting mask
   const maskBuffer = await buildInpaintingMask(imageSize, { frameBox, leftLensBox: transform.leftLensBox || { x: frameBox.x, y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height }, rightLensBox: transform.rightLensBox || { x: frameBox.x + Math.round(frameBox.width*0.6), y: frameBox.y, width: Math.round(frameBox.width*0.4), height: frameBox.height } }, faceGeometry);
   const maskB64 = maskBuffer.toString("base64");
-  const { frameBox } = transform;
   // ── Frame type detection ──────────────────────────────────────────────────
   const fw = lensParams.frameWidthMm || 135;
   const lw = lensParams.lensWidthMm || 50;
