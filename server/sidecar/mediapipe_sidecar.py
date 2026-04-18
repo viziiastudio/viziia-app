@@ -13,7 +13,7 @@ class ImageRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "endpoints": ["segment-frame", "centerline-temple", "hinge-temple", "face-occlude"]}
 
 @app.post("/landmarks")
 @app.post("/face-geometry")
