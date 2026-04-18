@@ -7,6 +7,7 @@ import cv2
 import math
 
 app = FastAPI()
+print(f"[VIZIIA] Loading sidecar with {len([l for l in open(__file__).readlines()])} lines")
 
 class ImageRequest(BaseModel):
     image_b64: str
