@@ -220,3 +220,81 @@ def hinge_temple(req: FrameRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+class OccludeRequest(BaseModel):
+    face_image_b64: str
+    temple_image_b64: str
+    temple_left: int
+    temple_top: int
+    side: str = "left"  # which side is the far temple
+
+@app.post("/face-occlude")
+def face_occlude(req: OccludeRequest):
+    """
+    Mask far-side temple behind face using MediaPipe convex hull.
+    Returns composited image with temple correctly occluded.
+    """
+    try:
+        # Decode face image
+        face_bytes = base64.b64decode(req.face_image_b64)
+        face_arr = np.frombuffer(face_bytes, np.uint8)
+        face = cv2.imdecode(face_arr, cv2.IMREAD_UNCHANGED)
+        if face.dtype == np.uint16:
+            face = (face >> 8).astype(np.uint8)
+        h, w = face.shape[:2]
+
+        # Decode temple
+        temple_bytes = base64.b64decode(req.temple_image_b64)
+        temple_arr = np.frombuffer(temple_bytes, np.uint8)
+        temple = cv2.imdecode(temple_arr, cv2.IMREAD_UNCHANGED)
+        if temple.dtype == np.uint16:
+            temple = (temple >> 8).astype(np.uint8)
+
+        # Run MediaPipe on face
+        mp_face = mp.solutions.face_mesh
+        with mp_face.FaceMesh(static_image_mode=True, max_num_faces=1, refine_landmarks=True) as mesh:
+            face_rgb = cv2.cvtColor(face[:,:,:3], cv2.COLOR_BGR2RGB)
+            results = mesh.process(face_rgb)
+
+        if not results.multi_face_landmarks:
+            raise HTTPException(status_code=400, detail="No face detected")
+
+        lms = results.multi_face_landmarks[0].landmark
+
+        # Far-side face contour landmarks
+        # Left far-side = right face contour (landmarks 234, 127, 162, 21, 54, 103, 67, 109, 10, 338, 297, 332, 284, 251, 389, 454)
+        if req.side == "left":
+            contour_ids = [234, 127, 162, 21, 54, 103, 67, 109, 10, 338, 297, 332, 284, 251, 389, 454]
+        else:
+            contour_ids = [454, 389, 251, 284, 332, 297, 338, 10, 109, 67, 103, 54, 21, 162, 127, 234]
+
+        pts = np.array([
+            [int(lms[i].x * w), int(lms[i].y * h)]
+            for i in contour_ids
+        ], dtype=np.int32)
+
+        # Create face silhouette mask
+        face_mask = np.zeros((h, w), dtype=np.uint8)
+        cv2.fillPoly(face_mask, [pts], 255)
+
+        # Composite temple onto face first
+        composite = face.copy()
+        th, tw = temple.shape[:2]
+        tx, ty = req.temple_left, req.temple_top
+
+        for y in range(th):
+            for x in range(tw):
+                fy, fx = ty + y, tx + x
+                if 0 <= fy < h and 0 <= fx < w:
+                    if temple.shape[2] == 4 and temple[y, x, 3] > 10:
+                        # Only draw temple pixel if face mask is 0 (not face silhouette)
+                        if face_mask[fy, fx] == 0:
+                            composite[fy, fx] = temple[y, x, :composite.shape[2]]
+
+        _, out_enc = cv2.imencode('.png', composite)
+        return { "result_b64": base64.b64encode(out_enc.tobytes()).decode() }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
