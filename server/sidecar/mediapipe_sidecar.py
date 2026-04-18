@@ -111,6 +111,10 @@ class FrameRequest(BaseModel):
     image_b64: str
     side: str = "left"  # "left" or "right"
 
+@app.get("/test-routes")
+def test_routes():
+    return {"routes": "ok", "version": "2"}
+
 @app.post("/hinge-temple")
 def hinge_temple(req: FrameRequest):
     """
