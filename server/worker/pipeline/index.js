@@ -1798,56 +1798,12 @@ export async function runViziiaV5Pipeline(job) {
               let angleComposite;
               let angleRefinedTransform = angleTransform;
 
-              // Point 1: Use full 3/4 SKU as single unit if threeQuarter photo provided
+              // Use full 3/4 SKU as single unit
               if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
-                // Try hinge detection + temple alignment first
-                const skuBuffer = await (async () => {
-                  const resp = await axios.get(clientPhotos.threeQuarter, { responseType: "arraybuffer" });
-                  return Buffer.from(resp.data);
-                })();
-
-                const templeResult = await decomposeAndAlignTemple(skuBuffer, angleFaceGeo, angle);
-
-                if (templeResult) {
-                  // Composite rim first
-                  const fullComposite = await compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle);
-                  if (fullComposite) {
-                    // Add rotated temple on top
-                    const templeLeft = Math.max(0, Math.round(templeResult.hinge.x - (angle.includes("left") ? 0 : templeResult.rotatedTemple.length / 4)));
-                    const templeTop = Math.max(0, Math.round(templeResult.hinge.y - 20));
-                    // Apply far-side temple occlusion via face convex hull
-                    try {
-                      const faceB64 = fullComposite.compositedBuffer.toString("base64");
-                      const templeB64 = templeResult.rotatedTemple.toString("base64");
-                      const occludeResp = await axios.post(
-                        `${MEDIAPIPE_URL}/face-occlude`,
-                        {
-                          face_image_b64: faceB64,
-                          temple_image_b64: templeB64,
-                          temple_left: templeLeft,
-                          temple_top: templeTop,
-                          side: angle.includes("left") ? "left" : "right"
-                        },
-                        { timeout: 30000 }
-                      );
-                      angleComposite = Buffer.from(occludeResp.data.result_b64, "base64");
-                      console.log("   ✓ Far-side temple occluded via convex hull");
-                    } catch (occErr) {
-                      console.warn("   ⚠ Occlusion failed, using basic composite:", occErr.message);
-                      angleComposite = await sharp(fullComposite.compositedBuffer)
-                        .composite([{ input: templeResult.rotatedTemple, left: templeLeft, top: templeTop, blend: "over" }])
-                        .toBuffer();
-                    }
-                    angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
-                    console.log(`   ✓ Temple aligned and composited`);
-                  }
-                } else {
-                  // Fallback to full composite
-                  const fullComposite = await compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle);
-                  if (fullComposite) {
-                    angleComposite = fullComposite.compositedBuffer;
-                    angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
-                  }
+                const fullComposite = await compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle);
+                if (fullComposite) {
+                  angleComposite = fullComposite.compositedBuffer;
+                  angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
                 }
               }
 
