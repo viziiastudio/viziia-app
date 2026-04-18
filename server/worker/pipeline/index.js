@@ -1421,8 +1421,7 @@ OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical compos
       parts: [
         { inlineData: { mimeType: "image/png", data: compositeB64 } },
         { inlineData: { mimeType: "image/png", data: frameB64 } },
-        { inlineData: { mimeType: "image/png", data: maskB64 } },
-        { text: prompt + "\n\nINPAINTING MASK: Image 3 is a grayscale mask. WHITE areas = zones you must blend/inpaint (shadows, contact points, ear occlusion). BLACK areas = locked SKU pixels you must preserve exactly — do NOT alter any pixels in black mask zones." }
+        { text: prompt }
       ]
     }],
     generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
