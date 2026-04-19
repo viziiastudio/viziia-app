@@ -489,3 +489,11 @@ def centerline_temple(req: ImageRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Debug: print routes at module level
+try:
+    import sys
+    _routes = [r.path for r in app.routes]
+    print(f"[VIZIIA INIT] {len(_routes)} routes loaded: {_routes}", file=sys.stderr, flush=True)
+except Exception as _e:
+    print(f"[VIZIIA ERROR] {_e}", file=sys.stderr, flush=True)
