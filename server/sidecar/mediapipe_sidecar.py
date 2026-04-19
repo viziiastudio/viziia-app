@@ -13,14 +13,14 @@ class ImageRequest(BaseModel):
     image_b64: str
 
 @app.get("/health")
-import sys as _s; print("ROUTE REGISTERED: @app.get("/health")", file=_s.stderr, flush=True)
+print(1, flush=True)
 def health():
     return {"status": "ok", "endpoints": ["segment-frame", "centerline-temple", "hinge-temple", "face-occlude"]}
 
 @app.post("/landmarks")
-import sys as _s; print("ROUTE REGISTERED: @app.post("/landmarks")", file=_s.stderr, flush=True)
+print(2, flush=True)
 @app.post("/face-geometry")
-import sys as _s; print("ROUTE REGISTERED: @app.post("/face-geometry")", file=_s.stderr, flush=True)
+print(3, flush=True)
 def get_face_geometry(req: ImageRequest):
     img_bytes = base64.b64decode(req.image_b64)
     img_array = np.frombuffer(img_bytes, np.uint8)
@@ -116,12 +116,12 @@ class FrameRequest(BaseModel):
     side: str = "left"  # "left" or "right"
 
 @app.get("/test-routes")
-import sys as _s; print("ROUTE REGISTERED: @app.get("/test-routes")", file=_s.stderr, flush=True)
+print(4, flush=True)
 def test_routes():
     return {"routes": "ok", "version": "2"}
 
 @app.post("/hinge-temple")
-import sys as _s; print("ROUTE REGISTERED: @app.post("/hinge-temple")", file=_s.stderr, flush=True)
+print(5, flush=True)
 def hinge_temple(req: FrameRequest):
     """
     Extract rim and temple from a 3/4 SKU photo using Harris corner hinge detection.
@@ -239,7 +239,7 @@ class OccludeRequest(BaseModel):
     side: str = "left"  # which side is the far temple
 
 @app.post("/face-occlude")
-import sys as _s; print("ROUTE REGISTERED: @app.post("/face-occlude")", file=_s.stderr, flush=True)
+print(6, flush=True)
 def face_occlude(req: OccludeRequest):
     """
     Mask far-side temple behind face using MediaPipe convex hull.
@@ -315,7 +315,7 @@ class SegmentRequest(BaseModel):
     side: str = "left"  # near-side: "left" or "right"
 
 @app.post("/segment-frame")
-import sys as _s; print("ROUTE REGISTERED: @app.post("/segment-frame")", file=_s.stderr, flush=True)
+print(7, flush=True)
 def segment_frame(req: SegmentRequest):
     """
     Segment a 3/4 SKU photo into 3 layers:
@@ -441,7 +441,7 @@ def segment_frame(req: SegmentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/centerline-temple")
-import sys as _s; print("ROUTE REGISTERED: @app.post("/centerline-temple")", file=_s.stderr, flush=True)
+print(8, flush=True)
 def centerline_temple(req: ImageRequest):
     """
     Extract centerline of a temple arm via skeletonization.
