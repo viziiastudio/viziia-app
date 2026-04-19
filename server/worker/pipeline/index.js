@@ -1572,6 +1572,46 @@ async function decomposeAndAlignTemple(skuBuffer, angleFaceGeo, angle) {
 }
 
 
+
+async function segmentFrameAsset(skuBuffer, side) {
+  // Call sidecar to split SKU into front_frame + near_temple + far_temple
+  try {
+    const skuB64 = skuBuffer.toString("base64");
+    const response = await axios.post(
+      `${MEDIAPIPE_URL}/segment-frame`,
+      { image_b64: skuB64, side },
+      { timeout: 30000 }
+    );
+    const { hinge, front_frame, near_temple, far_temple } = response.data;
+    
+    if (!front_frame?.b64) {
+      console.warn("   ⚠ segment-frame: no front_frame returned");
+      return null;
+    }
+
+    const result = {
+      hinge,
+      frontFrameBuffer: Buffer.from(front_frame.b64, "base64"),
+      frontFrameBox: { x: front_frame.x, y: front_frame.y, w: front_frame.w, h: front_frame.h },
+    };
+
+    if (near_temple?.b64) {
+      result.nearTempleBuffer = Buffer.from(near_temple.b64, "base64");
+      result.nearTempleBox = { x: near_temple.x, y: near_temple.y, w: near_temple.w, h: near_temple.h };
+    }
+
+    if (far_temple?.b64) {
+      result.farTempleBuffer = Buffer.from(far_temple.b64, "base64");
+    }
+
+    console.log(`   ✓ Frame segmented — hinge at x=${hinge.x}, near_temple: ${near_temple ? near_temple.w + 'x' + near_temple.h : 'none'}`);
+    return result;
+  } catch (err) {
+    console.warn("   ⚠ segment-frame failed:", err.message);
+    return null;
+  }
+}
+
 async function compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle) {
   console.log(`   → Compositing full 3/4 SKU frame as single unit...`);
   try {
@@ -1798,12 +1838,38 @@ export async function runViziiaV5Pipeline(job) {
               let angleComposite;
               let angleRefinedTransform = angleTransform;
 
-              // Use full 3/4 SKU as single unit
+              // For 3/4 angles: segment SKU into front_frame + near_temple
               if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
-                const fullComposite = await compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle);
-                if (fullComposite) {
-                  angleComposite = fullComposite.compositedBuffer;
-                  angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
+                const side = angle.includes("left") ? "left" : "right";
+                const skuResp = await axios.get(clientPhotos.threeQuarter, { responseType: "arraybuffer" });
+                const skuBuffer = Buffer.from(skuResp.data);
+                const segmented = await segmentFrameAsset(skuBuffer, side);
+
+                if (segmented) {
+                  // Override frameAsset.frontRim with segmented front_frame (no temple)
+                  const segmentedFrameAsset = { ...frameAsset, frontRim: segmented.frontFrameBuffer };
+                  const fullComposite = await compositeFullFrameOn3Quarter(angleModel, segmentedFrameAsset, angleFaceGeo, angle);
+
+                  if (fullComposite) {
+                    angleComposite = fullComposite.compositedBuffer;
+                    angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
+
+                    // Store near_temple for post-Gemini compositing
+                    if (segmented.nearTempleBuffer) {
+                      angleRefinedTransform._nearTemple = {
+                        buffer: segmented.nearTempleBuffer,
+                        box: segmented.nearTempleBox,
+                        hinge: segmented.hinge,
+                      };
+                    }
+                  }
+                } else {
+                  // Fallback to full composite
+                  const fullComposite = await compositeFullFrameOn3Quarter(angleModel, frameAsset, angleFaceGeo, angle);
+                  if (fullComposite) {
+                    angleComposite = fullComposite.compositedBuffer;
+                    angleRefinedTransform = { ...angleTransform, frameBox: fullComposite.frameBox };
+                  }
                 }
               }
 
@@ -1818,7 +1884,37 @@ export async function runViziiaV5Pipeline(job) {
                 angleFaceGeo, angleRefinedTransform,
                 { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
               );
-              angleBuffers[angle] = angleRefined;
+              // Post-Gemini: composite near_temple deterministically
+              let finalAngleBuffer = angleRefined;
+              if (angleRefinedTransform._nearTemple) {
+                try {
+                  const { buffer: templeBuffer, hinge, box } = angleRefinedTransform._nearTemple;
+                  const angleMeta = await sharp(angleModel).metadata();
+                  
+                  // Scale temple to match frame scale
+                  const scaleRatio = (angleRefinedTransform.frameBox?.width || 300) / 2409;
+                  const scaledW = Math.max(10, Math.round(box.w * scaleRatio));
+                  const scaledH = Math.max(10, Math.round(box.h * scaleRatio));
+                  
+                  const scaledTemple = await sharp(templeBuffer)
+                    .resize(scaledW, scaledH, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .png().toBuffer();
+
+                  // Position temple at hinge point
+                  const hingeScaled = Math.round(hinge.x * scaleRatio);
+                  const templeLeft = Math.max(0, angleRefinedTransform.frameBox.x + angleRefinedTransform.frameBox.width - hingeScaled);
+                  const templeTop = Math.max(0, angleRefinedTransform.frameBox.y - Math.round(scaledH * 0.3));
+
+                  finalAngleBuffer = await sharp(angleRefined)
+                    .composite([{ input: scaledTemple, left: templeLeft, top: templeTop, blend: "over" }])
+                    .toBuffer();
+                  console.log(`   ✓ Near temple composited post-Gemini (${scaledW}x${scaledH}px)`);
+                } catch (tErr) {
+                  console.warn("   ⚠ Temple composite failed:", tErr.message);
+                }
+              }
+
+              angleBuffers[angle] = finalAngleBuffer;
               console.log(`   ✓ ${angle} angle complete`);
             }
           } catch (err) {
