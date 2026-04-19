@@ -111,10 +111,6 @@ def get_face_geometry(req: ImageRequest):
         "landmarks": [{"x": l.x * w, "y": l.y * h, "z": l.z} for l in lm],
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
 class FrameRequest(BaseModel):
     image_b64: str
     side: str = "left"  # "left" or "right"
