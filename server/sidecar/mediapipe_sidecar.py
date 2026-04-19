@@ -14,7 +14,16 @@ import base64
 import cv2
 import math
 
-app = FastAPI()
+import sys as _sys
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def _lifespan(app):
+    print("LIFESPAN START", file=_sys.stderr, flush=True)
+    yield
+    print("LIFESPAN STOP", file=_sys.stderr, flush=True)
+
+app = FastAPI(openapi_url=None, lifespan=_lifespan)
 print(f"[VIZIIA] Loading sidecar with {len([l for l in open(__file__).readlines()])} lines")
 
 class ImageRequest(BaseModel):
