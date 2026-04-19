@@ -22,7 +22,10 @@ class ImageRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "routes": [r.path for r in app.routes]}
+    import hashlib
+    with open(__file__, "rb") as f:
+        h = hashlib.md5(f.read()).hexdigest()[:8]
+    return {"status": "ok", "hash": h, "routes": [r.path for r in app.routes]}
 
 @app.post("/landmarks")
 @app.post("/face-geometry")
