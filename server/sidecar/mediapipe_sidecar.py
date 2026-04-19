@@ -14,6 +14,105 @@ import base64
 import cv2
 import math
 
+@app.post("/segment-frame-v2")
+def segment_frame_v2(req: SegmentRequest):
+    """
+    Segment glasses into front_frame + near_temple using Watershed + mathematical hinge estimation.
+    More reliable than Harris corner detection for thin metal frames.
+    """
+    try:
+        img_bytes = base64.b64decode(req.image_b64)
+        img_arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(img_arr, cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Could not decode image")
+        if img.dtype != np.uint8:
+            img = (img >> 8).astype(np.uint8)
+
+        h, w = img.shape[:2]
+        alpha = img[:, :, 3] if img.shape[2] == 4 else np.ones((h, w), np.uint8) * 255
+        bgr = img[:, :, :3]
+
+        _, binary = cv2.threshold(alpha, 10, 255, cv2.THRESH_BINARY)
+
+        # Bounding box
+        nonzero = np.where(binary > 0)
+        if len(nonzero[0]) == 0:
+            raise HTTPException(status_code=400, detail="No frame detected")
+        x_min, x_max = int(np.min(nonzero[1])), int(np.max(nonzero[1]))
+        y_min, y_max = int(np.min(nonzero[0])), int(np.max(nonzero[0]))
+        bbox_w = x_max - x_min
+
+        # Mathematical hinge estimation using physical perspective projection
+        # Formula: hinge_x = x_min + bbox_w * (frame_w * cos(theta)) / (frame_w * cos(theta) + temple_l * sin(theta))
+        import math
+        theta = math.radians(35)  # assumed 3/4 angle
+        frame_w = 130  # mm
+        temple_l = 145  # mm
+        proj_frame = frame_w * math.cos(theta)
+        proj_temple = temple_l * math.sin(theta)
+        hinge_ratio = proj_frame / (proj_frame + proj_temple)
+        math_hinge_x = int(x_min + bbox_w * hinge_ratio)
+
+        # Watershed segmentation
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            raise HTTPException(status_code=400, detail="No contours found")
+        c = max(contours, key=cv2.contourArea)
+        leftmost = tuple(c[c[:, :, 0].argmin()][0])
+        rightmost = tuple(c[c[:, :, 0].argmax()][0])
+
+        markers = np.zeros((h, w), dtype=np.int32)
+        markers[binary == 0] = 1
+        # Front frame marker: leftmost region
+        cv2.circle(markers, leftmost, max(15, h//40), 2, -1)
+        # Temple marker: rightmost region (for left 3/4) or leftmost (for right 3/4)
+        if req.side == "left":
+            cv2.circle(markers, rightmost, max(15, h//40), 3, -1)
+        else:
+            cv2.circle(markers, leftmost, max(15, h//40), 3, -1)
+            cv2.circle(markers, rightmost, max(15, h//40), 2, -1)
+
+        rgb_mask = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+        cv2.watershed(rgb_mask, markers)
+
+        front_mask = np.where(markers == 2, 255, 0).astype(np.uint8)
+        temple_mask = np.where(markers == 3, 255, 0).astype(np.uint8)
+
+        # Apply alpha
+        front_mask = cv2.bitwise_and(front_mask, alpha)
+        temple_mask = cv2.bitwise_and(temple_mask, alpha)
+
+        def to_layer(mask):
+            if mask.sum() == 0:
+                return None, 0, 0, 0, 0
+            layer = np.zeros((h, w, 4), dtype=np.uint8)
+            layer[:, :, :3] = bgr
+            layer[:, :, 3] = mask
+            rows = np.any(layer[:, :, 3] > 10, axis=1)
+            cols = np.any(layer[:, :, 3] > 10, axis=0)
+            if not rows.any() or not cols.any():
+                return None, 0, 0, 0, 0
+            rmin, rmax = np.where(rows)[0][[0, -1]]
+            cmin, cmax = np.where(cols)[0][[0, -1]]
+            cropped = layer[rmin:rmax+1, cmin:cmax+1]
+            _, enc = cv2.imencode(".png", cropped)
+            return base64.b64encode(enc.tobytes()).decode(), int(cmin), int(rmin), int(cmax-cmin+1), int(rmax-rmin+1)
+
+        front_b64, fx, fy, fw, fh = to_layer(front_mask)
+        temple_b64, tx, ty, tw, th = to_layer(temple_mask)
+
+        return {
+            "hinge": {"x": math_hinge_x, "y": int((y_min + y_max) / 2), "method": "mathematical"},
+            "hinge_ratio": hinge_ratio,
+            "front_frame": {"b64": front_b64, "x": fx, "y": fy, "w": fw, "h": fh} if front_b64 else None,
+            "near_temple": {"b64": temple_b64, "x": tx, "y": ty, "w": tw, "h": th} if temple_b64 else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 import sys as _sys
 from contextlib import asynccontextmanager
 
