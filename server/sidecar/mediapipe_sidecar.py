@@ -444,8 +444,7 @@ def centerline_temple(req: ImageRequest):
     Returns ordered list of points from hinge to tip.
     """
     try:
-        from skimage.morphology import skeletonize
-        from skimage.measure import label as sk_label
+        # skimage replaced with opencv
 
         img_bytes = base64.b64decode(req.image_b64)
         img_arr = np.frombuffer(img_bytes, np.uint8)
@@ -460,7 +459,16 @@ def centerline_temple(req: ImageRequest):
         binary = (alpha > 10).astype(np.uint8)
 
         # Skeletonize
-        skeleton = skeletonize(binary).astype(np.uint8)
+        kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3,3))
+        skeleton = np.zeros_like(binary)
+        temp = binary.copy()
+        for _ in range(50):
+            eroded = cv2.erode(temp, kernel)
+            opened = cv2.dilate(eroded, kernel)
+            diff = cv2.subtract(temp, opened)
+            skeleton = cv2.bitwise_or(skeleton, diff)
+            temp = eroded.copy()
+            if cv2.countNonZero(temp) == 0: break
 
         # Get skeleton points
         pts = np.column_stack(np.where(skeleton > 0))  # (y, x)
@@ -482,8 +490,8 @@ def centerline_temple(req: ImageRequest):
             "total_points": len(pts_xy)
         }
 
-    except ImportError:
-        raise HTTPException(status_code=500, detail="skimage not installed ? run: pip install scikit-image")
+    except HTTPException:
+        raise
     except HTTPException:
         raise
     except Exception as e:
