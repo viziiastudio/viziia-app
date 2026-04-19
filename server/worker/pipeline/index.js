@@ -1408,9 +1408,11 @@ LENSES (${tintDesc}):
 - Subtle Fresnel reflections on outer curvature only — no harsh glare, no white reflections blocking eyes
 
 CONTACT & SHADOWS:
-- Nose bridge: realistic skin compression, micro-shadows, no floating gaps
-- Temples: one temple arm visible going back toward ear on 3/4 views, tucking naturally behind ear with correct perspective foreshortening and depth of field — render the visible temple arm with accurate metallic finish matching Image 2
-- Cast soft directional shadows on cheekbones and nose matching scene lighting
+- Nose bridge: realistic skin compression, micro-shadows, subtle skin warmth at contact points. The frame must look like it has physical weight pressing on the skin. No floating gaps.
+- Temples: tuck cleanly behind hair and ears with natural depth of field. Render visible temple arm with accurate metallic finish matching Image 2.
+- Cast Shadows: CRITICAL — the frame must cast a clearly visible soft shadow on the nose bridge, upper cheeks, and under the frame. Match shadow direction and color temperature to scene lighting.
+- Lens variation: subtle light gradient across lens surface, slight environment reflection toward edges — NOT flat uniform color.
+- Physical integration: glasses must look worn for hours — organic contact, natural weight. NOT a 2D overlay.
 
 OUTPUT: Square image, ${imageSize.width}x${imageSize.height}px, identical composition to Image 1.`;
 
