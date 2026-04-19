@@ -7,7 +7,12 @@ import cv2
 import math
 
 app = FastAPI()
-print(f"[VIZIIA] Loading sidecar with {len([l for l in open(__file__).readlines()])} lines")
+
+# Log all routes at startup
+@app.on_event("startup")
+async def startup_event():
+    routes = [r.path for r in app.routes]
+    print(f"[VIZIIA] Sidecar started with {len(routes)} routes: {routes}")
 
 class ImageRequest(BaseModel):
     image_b64: str
