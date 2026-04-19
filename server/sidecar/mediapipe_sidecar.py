@@ -1,6 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import mediapipe as mp
+try:
+    import mediapipe as mp
+    MEDIAPIPE_OK = True
+except Exception as _mp_err:
+    import sys
+    print(f"[VIZIIA] mediapipe import failed: {_mp_err}", file=sys.stderr, flush=True)
+    mp = None
+    MEDIAPIPE_OK = False
 import numpy as np
 import base64
 import cv2
@@ -13,14 +20,11 @@ class ImageRequest(BaseModel):
     image_b64: str
 
 @app.get("/health")
-print(1, flush=True)
 def health():
     return {"status": "ok", "endpoints": ["segment-frame", "centerline-temple", "hinge-temple", "face-occlude"]}
 
 @app.post("/landmarks")
-print(2, flush=True)
 @app.post("/face-geometry")
-print(3, flush=True)
 def get_face_geometry(req: ImageRequest):
     img_bytes = base64.b64decode(req.image_b64)
     img_array = np.frombuffer(img_bytes, np.uint8)
@@ -116,12 +120,10 @@ class FrameRequest(BaseModel):
     side: str = "left"  # "left" or "right"
 
 @app.get("/test-routes")
-print(4, flush=True)
 def test_routes():
     return {"routes": "ok", "version": "2"}
 
 @app.post("/hinge-temple")
-print(5, flush=True)
 def hinge_temple(req: FrameRequest):
     """
     Extract rim and temple from a 3/4 SKU photo using Harris corner hinge detection.
@@ -239,7 +241,6 @@ class OccludeRequest(BaseModel):
     side: str = "left"  # which side is the far temple
 
 @app.post("/face-occlude")
-print(6, flush=True)
 def face_occlude(req: OccludeRequest):
     """
     Mask far-side temple behind face using MediaPipe convex hull.
@@ -315,7 +316,6 @@ class SegmentRequest(BaseModel):
     side: str = "left"  # near-side: "left" or "right"
 
 @app.post("/segment-frame")
-print(7, flush=True)
 def segment_frame(req: SegmentRequest):
     """
     Segment a 3/4 SKU photo into 3 layers:
@@ -441,7 +441,6 @@ def segment_frame(req: SegmentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/centerline-temple")
-print(8, flush=True)
 def centerline_temple(req: ImageRequest):
     """
     Extract centerline of a temple arm via skeletonization.
