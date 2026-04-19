@@ -482,11 +482,11 @@ def segment_frame_v2(req: SegmentRequest):
         markers[binary == 0] = 1
         r = max(15, h // 40)
         if req.side == "left":
-            cv2.circle(markers, leftmost, r, 2, -1)
-            cv2.circle(markers, rightmost, r, 3, -1)
-        else:
             cv2.circle(markers, rightmost, r, 2, -1)
             cv2.circle(markers, leftmost, r, 3, -1)
+        else:
+            cv2.circle(markers, leftmost, r, 2, -1)
+            cv2.circle(markers, rightmost, r, 3, -1)
         rgb_mask = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
         cv2.watershed(rgb_mask, markers)
         front_mask = cv2.bitwise_and(np.where(markers == 2, 255, 0).astype(np.uint8), alpha)
