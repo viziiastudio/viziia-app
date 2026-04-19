@@ -1578,7 +1578,7 @@ async function segmentFrameAsset(skuBuffer, side) {
   try {
     const skuB64 = skuBuffer.toString("base64");
     const response = await axios.post(
-      `${MEDIAPIPE_URL}/segment-frame`,
+      `${MEDIAPIPE_URL}/segment-frame-v2`,
       { image_b64: skuB64, side },
       { timeout: 30000 }
     );
