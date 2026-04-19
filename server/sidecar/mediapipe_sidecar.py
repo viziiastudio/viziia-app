@@ -23,7 +23,7 @@ async def _lifespan(app):
     yield
     print("LIFESPAN STOP", file=_sys.stderr, flush=True)
 
-app = FastAPI(openapi_url=None, lifespan=_lifespan)
+app = FastAPI(lifespan=_lifespan)
 print(f"[VIZIIA] Loading sidecar with {len([l for l in open(__file__).readlines()])} lines")
 
 class ImageRequest(BaseModel):
@@ -506,7 +506,6 @@ def centerline_temple(req: ImageRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-import sys as _sys; print("ALL ROUTES OK", file=_sys.stderr, flush=True)
 
 if __name__ == "__main__":
     import sys, traceback
