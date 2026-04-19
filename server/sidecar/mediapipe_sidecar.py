@@ -507,3 +507,14 @@ def centerline_temple(req: ImageRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 import sys as _sys; print("ALL ROUTES OK", file=_sys.stderr, flush=True)
+
+if __name__ == "__main__":
+    import sys, traceback
+    try:
+        import uvicorn
+        print("Starting uvicorn...", file=sys.stderr, flush=True)
+        uvicorn.run(app, host="0.0.0.0", port=8000, log_level="debug")
+    except Exception as e:
+        print("UVICORN CRASH:", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
