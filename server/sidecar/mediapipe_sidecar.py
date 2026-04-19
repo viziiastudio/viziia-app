@@ -344,7 +344,7 @@ def segment_frame(req: SegmentRequest):
 
         x_min, x_max = int(np.min(nonzero[1])), int(np.max(nonzero[1]))
 
-        # Hinge on lateral edge — right side for "left" 3/4 view
+        # Hinge on lateral edge ? right side for "left" 3/4 view
         lateral_x = x_max if req.side == "left" else x_min
         hinge_candidates = [
             (int(corner_pts[1][i]), int(corner_pts[0][i]))
@@ -384,7 +384,7 @@ def segment_frame(req: SegmentRequest):
         if not components:
             raise HTTPException(status_code=400, detail="No components found")
 
-        # Sort by size — largest is front frame
+        # Sort by size ? largest is front frame
         sorted_by_size = sorted(components.items(), key=lambda x: x[1]["size"], reverse=True)
         front_label = sorted_by_size[0][0]
 
@@ -479,7 +479,7 @@ def centerline_temple(req: ImageRequest):
         }
 
     except ImportError:
-        raise HTTPException(status_code=500, detail="skimage not installed — run: pip install scikit-image")
+        raise HTTPException(status_code=500, detail="skimage not installed ? run: pip install scikit-image")
     except HTTPException:
         raise
     except Exception as e:
