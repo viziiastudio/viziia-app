@@ -21,14 +21,11 @@ class ImageRequest(BaseModel):
     image_b64: str
 
 @app.get("/health")
-import sys as _s; print(1, file=_s.stderr, flush=True)
 def health():
     return {"status": "ok", "routes": [r.path for r in app.routes]}
 
 @app.post("/landmarks")
-import sys as _s; print(2, file=_s.stderr, flush=True)
 @app.post("/face-geometry")
-import sys as _s; print(3, file=_s.stderr, flush=True)
 def get_face_geometry(req: ImageRequest):
     img_bytes = base64.b64decode(req.image_b64)
     img_array = np.frombuffer(img_bytes, np.uint8)
@@ -120,12 +117,10 @@ class FrameRequest(BaseModel):
     side: str = "left"  # "left" or "right"
 
 @app.get("/test-routes")
-import sys as _s; print(4, file=_s.stderr, flush=True)
 def test_routes():
     return {"routes": "ok", "version": "2"}
 
 @app.post("/hinge-temple")
-import sys as _s; print(5, file=_s.stderr, flush=True)
 def hinge_temple(req: FrameRequest):
     """
     Extract rim and temple from a 3/4 SKU photo using Harris corner hinge detection.
@@ -243,7 +238,6 @@ class OccludeRequest(BaseModel):
     side: str = "left"  # which side is the far temple
 
 @app.post("/face-occlude")
-import sys as _s; print(6, file=_s.stderr, flush=True)
 def face_occlude(req: OccludeRequest):
     """
     Mask far-side temple behind face using MediaPipe convex hull.
@@ -319,7 +313,6 @@ class SegmentRequest(BaseModel):
     side: str = "left"  # near-side: "left" or "right"
 
 @app.post("/segment-frame")
-import sys as _s; print(7, file=_s.stderr, flush=True)
 def segment_frame(req: SegmentRequest):
     """
     Segment a 3/4 SKU photo into 3 layers:
@@ -445,7 +438,6 @@ def segment_frame(req: SegmentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/centerline-temple")
-import sys as _s; print(8, file=_s.stderr, flush=True)
 def centerline_temple(req: ImageRequest):
     """
     Extract centerline of a temple arm via skeletonization.
@@ -504,3 +496,5 @@ def centerline_temple(req: ImageRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+import sys as _sys; print("ALL ROUTES OK", file=_sys.stderr, flush=True)
