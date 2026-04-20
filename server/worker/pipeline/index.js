@@ -1318,6 +1318,75 @@ async function buildInpaintingMask(imageSize, transform, faceGeometry) {
   return maskBuffer;
 }
 
+
+async function applyAmbientOcclusionShadow(compositedBuffer, transform, faceGeometry) {
+  // Pre-bake soft AO shadow under the frame before Gemini
+  // Simulates physical weight of glasses pressing on face
+  try {
+    const { frameBox, leftLensBox, rightLensBox } = transform;
+    const { imageSize } = faceGeometry;
+    const { width, height } = imageSize;
+
+    // Create shadow layer — soft dark ellipse under each lens and nose bridge
+    const shadowLayer = Buffer.alloc(width * height * 4, 0);
+
+    const paintEllipse = (cx, cy, rx, ry, opacity) => {
+      for (let y = Math.max(0, cy - ry); y < Math.min(height, cy + ry); y++) {
+        for (let x = Math.max(0, cx - rx); x < Math.min(width, cx + rx); x++) {
+          const dx = (x - cx) / rx;
+          const dy = (y - cy) / ry;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 1) {
+            const alpha = Math.round(opacity * (1 - dist) * 255);
+            const idx = (y * width + x) * 4;
+            shadowLayer[idx] = 0;
+            shadowLayer[idx + 1] = 0;
+            shadowLayer[idx + 2] = 0;
+            shadowLayer[idx + 3] = Math.min(255, shadowLayer[idx + 3] + alpha);
+          }
+        }
+      }
+    };
+
+    // Shadow under left lens bottom edge
+    paintEllipse(
+      leftLensBox.x + leftLensBox.width / 2,
+      leftLensBox.y + leftLensBox.height + 4,
+      leftLensBox.width * 0.45,
+      8,
+      0.25
+    );
+
+    // Shadow under right lens bottom edge
+    paintEllipse(
+      rightLensBox.x + rightLensBox.width / 2,
+      rightLensBox.y + rightLensBox.height + 4,
+      rightLensBox.width * 0.45,
+      8,
+      0.25
+    );
+
+    // Shadow under nose bridge
+    const noseX = (leftLensBox.x + leftLensBox.width + rightLensBox.x) / 2;
+    const noseY = frameBox.y + frameBox.height * 0.6;
+    paintEllipse(noseX, noseY, 12, 6, 0.20);
+
+    const shadowBuffer = await sharp(shadowLayer, {
+      raw: { width, height, channels: 4 }
+    }).png().toBuffer();
+
+    const result = await sharp(compositedBuffer)
+      .composite([{ input: shadowBuffer, blend: "multiply" }])
+      .toBuffer();
+
+    console.log("   ✓ AO shadow applied");
+    return result;
+  } catch (err) {
+    console.warn("   ⚠ AO shadow failed:", err.message);
+    return compositedBuffer;
+  }
+}
+
 async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, faceGeometry, transform, lensParams = {}) {
   console.log("→ Step 6: Gemini realistic glasses integration...");
 
@@ -1790,9 +1859,16 @@ export async function runViziiaV5Pipeline(job) {
         job.frameMetadata?.lens
       );
 
+      // Step 5.7: Ambient Occlusion shadow pre-bake
+      const aoBuffer = await applyAmbientOcclusionShadow(
+        envReflectedBuffer,
+        transform,
+        faceGeometry
+      );
+
       // Step 6: Gemini realistic glasses integration with geometric anchors
       const refinedBuffer = await integrateGlassesWithGemini(
-        envReflectedBuffer,
+        aoBuffer,
         frameAsset.frontRim,
         faceGeometry,
         transform,
