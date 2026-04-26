@@ -1441,7 +1441,7 @@ async function integrateGlassesWithGemini(compositedBuffer, frameRimBuffer, face
   const tint = lensParams.tint || "clear";
   const transmission = lensParams.transmission ?? 0.9;
   const tintDesc = {
-    clear: "perfectly clear transparent lenses with no color",
+    clear: "perfectly clear optical glass lenses, fully transparent, no tint, eyes completely visible, like prescription glasses",
     grey: "dark grey tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
     brown: "warm amber/honey tinted lenses with rich golden-amber color, " + Math.round(transmission*100) + "% light transmission — eyes visible through lenses, saturated warm amber tint that is clearly noticeable as a product feature",
     green: "green tinted lenses, transmission " + Math.round((1-transmission)*100) + "% opacity",
@@ -1746,8 +1746,8 @@ async function generateAngleVariant(frontModelBuffer, angle, jobId) {
 
   const anglePrompts = {
     "front":        "Keep this exact portrait as-is. Do not change anything.",
-    "three-quarter-left":  "Edit this portrait: rotate the head so the person looks toward the RIGHT edge of the image (their left, camera right). 3/4 profile view, nose pointing right. Same person, same clothes, same background. Square 1:1 crop.",
-    "three-quarter-right": "Edit this portrait: rotate the head so the person looks toward the LEFT edge of the image (their right, camera left). 3/4 profile view, nose pointing left. Same person, same clothes, same background. Square 1:1 crop.",
+    "three-quarter-left":  "Edit this portrait: rotate the head so the person looks toward the LEFT edge of the image. 3/4 profile view, nose pointing left. Same person, same clothes, same background. Square 1:1 crop.",
+    "three-quarter-right": "Edit this portrait: rotate the head so the person looks toward the RIGHT edge of the image. 3/4 profile view, nose pointing right. Same person, same clothes, same background. Square 1:1 crop.",
     "profile-left":        "Rotate this person's head 80-90 degrees to show a left side profile. Keep the exact same person, same outfit, same hair, same background. Only the head angle changes. Square 1:1 format.",
   };
 
