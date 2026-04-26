@@ -155,9 +155,6 @@ def hinge_temple(req: FrameRequest):
         else:
             _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
             _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
-        else:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            _, alpha = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
 
         # Harris corner detection for hinge
         bgr = img[:, :, :3]
