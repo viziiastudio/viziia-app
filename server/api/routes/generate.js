@@ -37,10 +37,12 @@ const FrameMetadataSchema = z.object({
 })
 
 const ClientPhotosSchema = z.object({
-  front:    z.url(),
-  left45:   z.url().optional(),
-  right45:  z.url().optional(),
-  closeup:  z.url().optional(),
+  front:              z.url(),
+  threeQuarter:       z.url().optional(),
+  threeQuarterRight:  z.url().optional(),
+  left45:             z.url().optional(),
+  right45:            z.url().optional(),
+  closeup:            z.url().optional(),
 })
 
 const ModelParamsSchema = z.object({

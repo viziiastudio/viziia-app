@@ -1919,7 +1919,10 @@ export async function runViziiaV5Pipeline(job) {
               // For 3/4 angles: segment SKU into front_frame + near_temple
               if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
                 const side = angle.includes("left") ? "left" : "right";
-                const skuResp = await axios.get(clientPhotos.threeQuarter, { responseType: "arraybuffer" });
+                const skuUrl = side === "right" && clientPhotos.threeQuarterRight
+                  ? clientPhotos.threeQuarterRight
+                  : clientPhotos.threeQuarter;
+                const skuResp = await axios.get(skuUrl, { responseType: "arraybuffer" });
                 const skuBuffer = Buffer.from(skuResp.data);
                 const segmented = await segmentFrameAsset(skuBuffer, side);
 
