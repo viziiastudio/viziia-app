@@ -358,7 +358,9 @@ def segment_frame(req: SegmentRequest):
         x_min, x_max = int(np.min(nonzero[1])), int(np.max(nonzero[1]))
 
         # Hinge on lateral edge ? right side for "left" 3/4 view
-        lateral_x = x_max if req.side == "left" else x_min
+        # For left 3/4 view: near temple is on LEFT side (x_min)
+        # For right 3/4 view: near temple is on RIGHT side (x_max)
+        lateral_x = x_min if req.side == "left" else x_max
         hinge_candidates = [
             (int(corner_pts[1][i]), int(corner_pts[0][i]))
             for i in range(len(corner_pts[0]))
