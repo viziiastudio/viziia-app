@@ -422,7 +422,8 @@ def segment_frame(req: SegmentRequest):
         far_label = remaining_sorted[1][0] if len(remaining_sorted) > 1 else None
 
         def extract_layer(mask):
-            layer = np.zeros_like(img)
+            h_, w_ = mask.shape[:2]
+            layer = np.zeros((h_, w_, 4), dtype=np.uint8)
             layer[:, :, :3] = bgr
             layer[:, :, 3] = (mask * alpha).astype(np.uint8)
             # Tight crop
