@@ -150,8 +150,11 @@ def hinge_temple(req: FrameRequest):
             img = (img >> 8).astype(np.uint8)
 
         # Get alpha channel
-        if img.shape[2] == 4:
+        if img.shape[2] >= 4:
             alpha = img[:, :, 3]
+        else:
+            _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
         else:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             _, alpha = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
@@ -340,8 +343,11 @@ def segment_frame(req: SegmentRequest):
             img = (img >> 8).astype(np.uint8)
 
         h, w = img.shape[:2]
-        if img.shape[2] == 4:
+        if img.shape[2] >= 4:
             alpha = img[:, :, 3]
+        else:
+            _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
         else:
             gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
             _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
@@ -463,8 +469,11 @@ def segment_frame_v2(req: SegmentRequest):
         if img.dtype != np.uint8:
             img = (img >> 8).astype(np.uint8)
         h, w = img.shape[:2]
-        if img.shape[2] == 4:
+        if img.shape[2] >= 4:
             alpha = img[:, :, 3]
+        else:
+            _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
         else:
             gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
             _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
@@ -545,8 +554,11 @@ def centerline_temple(req: ImageRequest):
             img = (img >> 8).astype(np.uint8)
 
         h, w = img.shape[:2]
-        if img.shape[2] == 4:
+        if img.shape[2] >= 4:
             alpha = img[:, :, 3]
+        else:
+            _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
         else:
             gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
             _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
