@@ -1746,8 +1746,8 @@ async function generateAngleVariant(frontModelBuffer, angle, jobId) {
 
   const anglePrompts = {
     "front":        "Keep this exact portrait as-is. Do not change anything.",
-    "three-quarter-left":  "Turn this person's head so they are looking slightly to the LEFT side of the frame. The nose should point toward the left edge of the image. 3/4 view, 35-40 degrees. Keep the exact same person, same face features, same outfit, same hair, same background. Only the head direction changes. Square 1:1 format.",
-    "three-quarter-right": "Turn this person's head so they are looking slightly to the RIGHT side of the frame. The nose should point toward the right edge of the image. 3/4 view, 35-40 degrees. Keep the exact same person, same face features, same outfit, same hair, same background. Only the head direction changes. Square 1:1 format.",
+    "three-quarter-left":  "Edit this portrait: rotate the head so the person looks toward the RIGHT edge of the image (their left, camera right). 3/4 profile view, nose pointing right. Same person, same clothes, same background. Square 1:1 crop.",
+    "three-quarter-right": "Edit this portrait: rotate the head so the person looks toward the LEFT edge of the image (their right, camera left). 3/4 profile view, nose pointing left. Same person, same clothes, same background. Square 1:1 crop.",
     "profile-left":        "Rotate this person's head 80-90 degrees to show a left side profile. Keep the exact same person, same outfit, same hair, same background. Only the head angle changes. Square 1:1 format.",
   };
 
