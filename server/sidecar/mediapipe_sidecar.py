@@ -550,9 +550,6 @@ def centerline_temple(req: ImageRequest):
         else:
             _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
             _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
-        else:
-            gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
-            _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
 
         # Binary mask
         binary = (alpha > 10).astype(np.uint8)
