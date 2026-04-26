@@ -340,12 +340,17 @@ def segment_frame(req: SegmentRequest):
             img = (img >> 8).astype(np.uint8)
 
         h, w = img.shape[:2]
+        bgr = img[:, :, :3]
         if img.shape[2] >= 4:
             alpha = img[:, :, 3]
         else:
-            _gray = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
-            _, alpha = cv2.threshold(_gray, 240, 255, cv2.THRESH_BINARY_INV)
-        bgr = img[:, :, :3]
+            # For white-background product photos: detect dark frame pixels
+            _gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            # Threshold: pixels darker than 200 = frame
+            _, alpha = cv2.threshold(_gray, 200, 255, cv2.THRESH_BINARY_INV)
+            # Morphological cleanup
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            alpha = cv2.morphologyEx(alpha, cv2.MORPH_CLOSE, kernel)
 
         # --- Harris hinge detection ---
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
