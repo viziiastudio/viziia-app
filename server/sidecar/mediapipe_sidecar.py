@@ -340,7 +340,11 @@ def segment_frame(req: SegmentRequest):
             img = (img >> 8).astype(np.uint8)
 
         h, w = img.shape[:2]
-        alpha = img[:, :, 3] if img.shape[2] == 4 else np.ones((h, w), np.uint8) * 255
+        if img.shape[2] == 4:
+            alpha = img[:, :, 3]
+        else:
+            gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
         bgr = img[:, :, :3]
 
         # --- Harris hinge detection ---
@@ -459,7 +463,11 @@ def segment_frame_v2(req: SegmentRequest):
         if img.dtype != np.uint8:
             img = (img >> 8).astype(np.uint8)
         h, w = img.shape[:2]
-        alpha = img[:, :, 3] if img.shape[2] == 4 else np.ones((h, w), np.uint8) * 255
+        if img.shape[2] == 4:
+            alpha = img[:, :, 3]
+        else:
+            gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
         bgr = img[:, :, :3]
         _, binary = cv2.threshold(alpha, 10, 255, cv2.THRESH_BINARY)
         nonzero = np.where(binary > 0)
@@ -537,7 +545,11 @@ def centerline_temple(req: ImageRequest):
             img = (img >> 8).astype(np.uint8)
 
         h, w = img.shape[:2]
-        alpha = img[:, :, 3] if img.shape[2] == 4 else np.ones((h, w), np.uint8) * 255
+        if img.shape[2] == 4:
+            alpha = img[:, :, 3]
+        else:
+            gray_tmp = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+            _, alpha = cv2.threshold(gray_tmp, 240, 255, cv2.THRESH_BINARY_INV)
 
         # Binary mask
         binary = (alpha > 10).astype(np.uint8)
