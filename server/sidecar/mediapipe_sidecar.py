@@ -365,23 +365,27 @@ def segment_frame(req: SegmentRequest):
             raise HTTPException(status_code=400, detail="No frame detected")
 
         x_min, x_max = int(np.min(nonzero[1])), int(np.max(nonzero[1]))
+        y_min, y_max = int(np.min(nonzero[0])), int(np.max(nonzero[0]))
+        frame_w = x_max - x_min
 
-        # Hinge on lateral edge ? right side for "left" 3/4 view
-        # For left 3/4 view: near temple is on LEFT side (x_min)
-        # For right 3/4 view: near temple is on RIGHT side (x_max)
-        lateral_x = x_min if req.side == "left" else x_max
+        # Hinge at 18% from near side of actual frame bounding box
+        if req.side == "left":
+            hinge_x = x_min + int(frame_w * 0.18)
+        else:
+            hinge_x = x_max - int(frame_w * 0.18)
+        hinge_y = int((y_min + y_max) / 2)
+
+        # Refine with Harris corners near estimated hinge
+        search_min = hinge_x - int(frame_w * 0.08)
+        search_max = hinge_x + int(frame_w * 0.08)
         hinge_candidates = [
             (int(corner_pts[1][i]), int(corner_pts[0][i]))
             for i in range(len(corner_pts[0]))
-            if abs(corner_pts[1][i] - lateral_x) < w * 0.15
+            if search_min <= corner_pts[1][i] <= search_max
         ]
-
         if hinge_candidates:
             hinge_x = int(np.median([p[0] for p in hinge_candidates]))
             hinge_y = int(np.median([p[1] for p in hinge_candidates]))
-        else:
-            hinge_x = lateral_x - w // 5 if req.side == "left" else lateral_x + w // 5
-            hinge_y = h // 2
 
         # --- Cut at hinge + connected components ---
         cut_mask = alpha.copy()
