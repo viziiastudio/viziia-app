@@ -322,14 +322,61 @@ class SegmentRequest(BaseModel):
     side: str = "left"  # near-side: "left" or "right"
 
 @app.post("/segment-frame")
-def segment_frame(req: SegmentRequest):
+def segment_frame(req: SegmentRequest, debug: bool = False):
     """
     Segment a 3/4 SKU photo into 3 layers:
     - front_frame (rim + bridge + lenses)
     - near_temple
     - far_temple
     Uses Harris hinge detection + connected components.
+
+    debug=true (query param) saves the intermediate foreground mask (and, for RGB
+    inputs, the old fixed-threshold mask for comparison) to VIZIIA_DEBUG_DIR
+    (default /tmp/viziia_debug) so the mask can be visually inspected.
     """
+    # --- RGB white-background foreground-isolation tuning ---------------------
+    # Only used on the RGB (no-alpha) path; RGBA inputs use their real matte.
+    #
+    # PRIMARY signal is value+saturation. The white background is the only thing
+    # that is BOTH bright AND unsaturated, so foreground = frame = "dark OR
+    # colored". This recovers translucent colored acetate (bright but saturated)
+    # and dark frames alike, and it deliberately leaves bright low-saturation
+    # regions (clear lenses) as background so the lens openings stay transparent.
+    #   BG_VALUE_MIN   HSV V at/above this may be background. Lower = treats more
+    #                  mid-grays as background (risks eating a bright frame).
+    #   BG_SAT_MAX     HSV S at/below this may be background. Raise if pale/washed
+    #                  acetate is dropped; too high lets a tinted background leak in.
+    #
+    # SHADOW rejection is a FIXED_RANGE border flood fill seeded from the corner
+    # (background) color. FIXED_RANGE compares every pixel to the SEED, never to
+    # its neighbour, so the fill CANNOT creep gradient-by-gradient into a
+    # translucent frame body — it only clears the near-white/soft-shadow halo.
+    #   SHADOW_FLOOD_TOLERANCE   per-channel distance from the corner color still
+    #                  counted as background. Keep well below the frame's contrast
+    #                  with white (< ~80) so it can't reach the frame. Higher eats
+    #                  more soft shadow.
+    #   MIN_COMPONENT_AREA_FRAC  connected components smaller than this fraction of
+    #                  the largest are dropped as specks. Rim + temple are one
+    #                  hinge-connected blob, so this won't remove real parts.
+    #
+    # CONFIDENCE GUARD (RGB path only). A clear/crystal frame is photometrically
+    # identical to the white background except at lighting-dependent edges, so the
+    # value+saturation mask collapses to a few scattered specks. Rather than emit a
+    # garbage mask, we reject low-confidence results with 422 so the caller can
+    # route the SKU to ML matting (Remove.bg / SAM2) instead.
+    #   MIN_PLAUSIBLE_FG          minimum foreground fraction of the whole image for
+    #                  the mask to be trusted. Real frames (incl. thin metal) sit
+    #                  well above this; crystal failures fall far below.
+    #   MIN_LARGEST_COMPONENT_FRAC  the largest connected component must hold at
+    #                  least this share of all foreground. A real frame is one
+    #                  hinge-connected blob (~1.0); a crystal failure is many tiny
+    #                  disconnected specks (low).
+    BG_VALUE_MIN = 200
+    BG_SAT_MAX = 35
+    SHADOW_FLOOD_TOLERANCE = 48
+    MIN_COMPONENT_AREA_FRAC = 0.02
+    MIN_PLAUSIBLE_FG = 0.02
+    MIN_LARGEST_COMPONENT_FRAC = 0.5
     try:
         img_bytes = base64.b64decode(req.image_b64)
         img_arr = np.frombuffer(img_bytes, np.uint8)
@@ -341,16 +388,147 @@ def segment_frame(req: SegmentRequest):
 
         h, w = img.shape[:2]
         bgr = img[:, :, :3]
-        if img.shape[2] >= 4:
+        _old_threshold_mask = None  # populated on RGB path for debug comparison
+        used_rgb_mask = False       # gates the confidence guard below
+
+        # An alpha channel is only a real matte if it actually varies. Many client
+        # uploads are white-background photos saved in an RGBA container with a
+        # FULLY OPAQUE alpha (min == max == 255) — trusting that as a matte yields
+        # an all-255 mask and a whole-image bounding box. Treat opaque alpha as RGB.
+        has_real_alpha = (
+            img.shape[2] >= 4 and int(img[:, :, 3].min()) != int(img[:, :, 3].max())
+        )
+        if has_real_alpha:
+            # RGBA: trust the real alpha matte (unchanged).
             alpha = img[:, :, 3]
         else:
-            # For white-background product photos: detect dark frame pixels
-            _gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-            # Threshold: pixels darker than 200 = frame
-            _, alpha = cv2.threshold(_gray, 200, 255, cv2.THRESH_BINARY_INV)
-            # Morphological cleanup
+            used_rgb_mask = True
+            # RGB white-background product photo. A plain darkness threshold kills
+            # bright/translucent acetate and keeps shadows; a floating-range flood
+            # fill creeps through translucent frame bodies. Instead:
+            #   1. PRIMARY foreground from value+saturation: the background is the
+            #      only thing that is bright AND unsaturated, so frame = dark OR
+            #      colored. Clear lenses are bright + unsaturated -> stay background
+            #      (lens openings remain transparent, which is what try-on wants).
+            #   2. Reject soft shadows with a FIXED_RANGE border flood fill seeded
+            #      from the corner color; it cannot enter the frame body.
+            #   3. Drop specks by area. NO interior hole fill (lenses stay open).
+            hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+            sat, val = hsv[:, :, 1], hsv[:, :, 2]
+
+            # Old fixed threshold kept only for the debug side-by-side comparison.
+            if debug:
+                _g = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+                _, _old_threshold_mask = cv2.threshold(_g, 200, 255, cv2.THRESH_BINARY_INV)
+
+            # (1) Primary: background = bright AND unsaturated; foreground = rest.
+            background = (val >= BG_VALUE_MIN) & (sat <= BG_SAT_MAX)
+            alpha = np.where(background, 0, 255).astype(np.uint8)
+
+            # (2) Shadow rejection. FIXED_RANGE => each pixel compared to the seed
+            # (corner background color), never to its neighbour, so the fill clears
+            # the near-white / soft-shadow halo but can NEVER creep into a dark or
+            # colored (translucent) frame body. FLOODFILL_MASK_ONLY leaves the
+            # image untouched.
+            ff_mask = np.zeros((h + 2, w + 2), np.uint8)
+            lo = (SHADOW_FLOOD_TOLERANCE,) * 3
+            up = (SHADOW_FLOOD_TOLERANCE,) * 3
+            flags = 8 | cv2.FLOODFILL_MASK_ONLY | cv2.FLOODFILL_FIXED_RANGE | (255 << 8)
+            for seed in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
+                cv2.floodFill(bgr.copy(), ff_mask, seed, 0, lo, up, flags)
+            alpha[ff_mask[1:-1, 1:-1] > 0] = 0
+
+            # (3) Seal small rim nicks, then drop specks (shadows, dust) by area.
+            # Do NOT fill interior holes — lens openings must stay transparent.
             kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
             alpha = cv2.morphologyEx(alpha, cv2.MORPH_CLOSE, kernel)
+            n_cc, cc_labels, cc_stats, _ = cv2.connectedComponentsWithStats(
+                (alpha > 0).astype(np.uint8), 8
+            )
+            if n_cc > 2:
+                areas = cc_stats[1:, cv2.CC_STAT_AREA]
+                keep = 1 + np.where(areas >= MIN_COMPONENT_AREA_FRAC * areas.max())[0]
+                alpha = np.where(np.isin(cc_labels, keep), 255, 0).astype(np.uint8)
+
+        if debug:
+            import os, time
+            ts = int(time.time() * 1000)
+            artifacts = [(f"segframe_{ts}_{req.side}_fg_mask.png", alpha)]
+            if _old_threshold_mask is not None:
+                artifacts.append((f"segframe_{ts}_{req.side}_old_threshold.png", _old_threshold_mask))
+
+            # Local-dir write — always on, and the fallback when S3 is unconfigured.
+            dbg_dir = os.environ.get("VIZIIA_DEBUG_DIR", "/tmp/viziia_debug")
+            os.makedirs(dbg_dir, exist_ok=True)
+            for fname, mask_img in artifacts:
+                cv2.imwrite(f"{dbg_dir}/{fname}", mask_img)
+            print(
+                f"[VIZIIA][segment-frame] debug masks saved locally to {dbg_dir} (ts={ts}, side={req.side})",
+                file=_sys.stderr, flush=True,
+            )
+
+            # S3 upload — reuses the SKU-cache bucket + creds (AWS_S3_BUCKET,
+            # AWS_REGION, AWS_ACCESS_KEY_ID/SECRET picked up by boto3). Logs a
+            # presigned GET URL so the mask opens straight from the Railway logs
+            # even on a private bucket.
+            bucket = os.environ.get("AWS_S3_BUCKET")
+            if bucket:
+                try:
+                    import boto3
+                    region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+                    s3 = boto3.client("s3", region_name=region)
+                    for fname, mask_img in artifacts:
+                        ok, buf = cv2.imencode(".png", mask_img)
+                        if not ok:
+                            continue
+                        key = f"debug/segframe/{fname}"
+                        s3.put_object(
+                            Bucket=bucket, Key=key,
+                            Body=buf.tobytes(), ContentType="image/png",
+                        )
+                        try:
+                            url = s3.generate_presigned_url(
+                                "get_object",
+                                Params={"Bucket": bucket, "Key": key},
+                                ExpiresIn=7 * 24 * 3600,  # 7d = SigV4 max
+                            )
+                        except Exception:
+                            url = f"s3://{bucket}/{key}"
+                        print(
+                            f"[VIZIIA][segment-frame] debug mask uploaded: {url}",
+                            file=_sys.stderr, flush=True,
+                        )
+                except Exception as _s3err:
+                    print(
+                        f"[VIZIIA][segment-frame] S3 debug upload failed ({_s3err}); local copy in {dbg_dir}",
+                        file=_sys.stderr, flush=True,
+                    )
+
+        # --- Confidence guard (RGB-derived masks only) ---
+        # A clear/crystal frame leaves only scattered specks here. Reject rather
+        # than emit garbage, so the caller can re-route to ML matting. Runs after
+        # the debug upload so the rejected mask is still inspectable. Real mattes
+        # (has_real_alpha) are trusted and skip this check.
+        if used_rgb_mask:
+            fg_fraction = float((alpha > 0).mean())
+            g_n, _g_lbl, g_stats, _ = cv2.connectedComponentsWithStats(
+                (alpha > 0).astype(np.uint8), 8
+            )
+            total_fg = int((alpha > 0).sum())
+            largest_frac = (
+                int(g_stats[1:, cv2.CC_STAT_AREA].max()) / total_fg
+                if g_n > 1 and total_fg > 0 else 0.0
+            )
+            if fg_fraction < MIN_PLAUSIBLE_FG or largest_frac < MIN_LARGEST_COMPONENT_FRAC:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "low-confidence mask: likely transparent frame "
+                        f"(fg_fraction={fg_fraction:.4f}, "
+                        f"largest_component_frac={largest_frac:.2f}); "
+                        "route this SKU to ML matting"
+                    ),
+                )
 
         # --- Harris hinge detection ---
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
@@ -378,10 +556,14 @@ def segment_frame(req: SegmentRequest):
         # Refine with Harris corners near estimated hinge
         search_min = hinge_x - int(frame_w * 0.08)
         search_max = hinge_x + int(frame_w * 0.08)
+        # Restrict candidates to the cleaned foreground mask so the refine step
+        # can't lock onto shadow / background corner responses (which on the RGB
+        # path used to leak in from the corrupted mask).
         hinge_candidates = [
             (int(corner_pts[1][i]), int(corner_pts[0][i]))
             for i in range(len(corner_pts[0]))
             if search_min <= corner_pts[1][i] <= search_max
+            and alpha[corner_pts[0][i], corner_pts[1][i]] > 10
         ]
         if hinge_candidates:
             hinge_x = int(np.median([p[0] for p in hinge_candidates]))
