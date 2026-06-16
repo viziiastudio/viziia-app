@@ -339,7 +339,12 @@ async function decomposeFrameAsset(clientPhotos, frameMetadata, jobId) {
   return asset;
 }
 
-async function extractTemple(photo45Buffer, side) {
+async function extractTemple(photo45, side) {
+  // Accept either a Buffer or a URL string (the 3/4 angle path passes a URL).
+  // extractWithRemoveBg needs raw image bytes, so download first when given a URL.
+  const photo45Buffer = Buffer.isBuffer(photo45)
+    ? photo45
+    : Buffer.from((await axios.get(photo45, { responseType: "arraybuffer" })).data);
   const fullExtraction = await extractWithRemoveBg(photo45Buffer);
   const metadata = await sharp(fullExtraction).metadata();
   // FIX: left temple photo shows the temple on the LEFT side of the image (cropX = 0)
