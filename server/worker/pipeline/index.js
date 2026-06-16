@@ -1812,7 +1812,10 @@ export async function runViziiaV5Pipeline(job) {
 
   // Step 1: Decompose frame asset (once per SKU)
   // Skip if pre-built asset provided (e.g. from generatePreviewV5 which decomposes once for both previews)
-  const frameAsset = job.frameAsset
+  // NOTE: `let` — the 3/4 angle path reassigns this to a 3/4-specific
+  // decomposed asset. Was `const`, which threw "Assignment to constant
+  // variable" once decomposeFrameAsset started succeeding on that path.
+  let frameAsset = job.frameAsset
     ? job.frameAsset
     : await decomposeFrameAsset(clientPhotos, frameMetadata, jobId);
 
