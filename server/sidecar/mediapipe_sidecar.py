@@ -644,8 +644,67 @@ def segment_frame(req: SegmentRequest, debug: bool = False):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def _save_segv2_debug(side, bgr, alpha, hinge_x, front_mask, temple_mask):
+    """Save segment-frame-v2 debug artifacts (hinge overlay + near/front masks)
+    locally to VIZIIA_DEBUG_DIR (default /tmp/viziia_debug), and to S3 when
+    configured. Mirrors the /segment-frame debug path. Never raises."""
+    try:
+        import os, time
+        ts = int(time.time() * 1000)
+        overlay = bgr.copy()
+        if hinge_x is not None:
+            cv2.line(overlay, (hinge_x, 0), (hinge_x, overlay.shape[0]), (0, 170, 0), 6)
+            cv2.putText(overlay, f"hinge x={hinge_x} (side={side})",
+                        (max(10, hinge_x - 320), 60), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 170, 0), 4)
+        artifacts = [(f"segframe2_{ts}_{side}_hinge_overlay.png", overlay),
+                     (f"segframe2_{ts}_{side}_front_mask.png", front_mask)]
+        if temple_mask is not None:
+            artifacts.append((f"segframe2_{ts}_{side}_near_temple_mask.png", temple_mask))
+        dbg_dir = os.environ.get("VIZIIA_DEBUG_DIR", "/tmp/viziia_debug")
+        os.makedirs(dbg_dir, exist_ok=True)
+        for fname, im in artifacts:
+            cv2.imwrite(f"{dbg_dir}/{fname}", im)
+        print(f"[VIZIIA][segment-frame-v2] debug saved to {dbg_dir} "
+              f"(ts={ts}, side={side}, hinge_x={hinge_x})", file=_sys.stderr, flush=True)
+        bucket = os.environ.get("AWS_S3_BUCKET")
+        if bucket:
+            try:
+                import boto3
+                region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+                s3 = boto3.client("s3", region_name=region)
+                for fname, im in artifacts:
+                    ok, buf = cv2.imencode(".png", im)
+                    if not ok:
+                        continue
+                    key = f"debug/segframe2/{fname}"
+                    s3.put_object(Bucket=bucket, Key=key, Body=buf.tobytes(), ContentType="image/png")
+                    try:
+                        url = s3.generate_presigned_url("get_object",
+                            Params={"Bucket": bucket, "Key": key}, ExpiresIn=7 * 24 * 3600)
+                    except Exception:
+                        url = f"s3://{bucket}/{key}"
+                    print(f"[VIZIIA][segment-frame-v2] debug uploaded: {url}", file=_sys.stderr, flush=True)
+            except Exception as _s3err:
+                print(f"[VIZIIA][segment-frame-v2] S3 debug upload failed ({_s3err}); "
+                      f"local copy in {dbg_dir}", file=_sys.stderr, flush=True)
+    except Exception as _dbgerr:
+        print(f"[VIZIIA][segment-frame-v2] debug save failed: {_dbgerr}", file=_sys.stderr, flush=True)
+
 @app.post("/segment-frame-v2")
-def segment_frame_v2(req: SegmentRequest):
+def segment_frame_v2(req: SegmentRequest, debug: bool = False):
+    """
+    Split a 3/4 SKU into front_frame (both lenses + bridge, → Gemini) and a
+    TEMPLE-ONLY near_temple (arm + endpiece, no lens), cut at the real hinge.
+
+    The hinge is detected from the per-column vertical-extent profile: the lens
+    front is tall, the temple arm is a thin bar, and the hinge is the sharp
+    thin↔tall transition scanned inward from the near extreme. The projection
+    model (math_hinge_x, 0.561·bbox) is the BRIDGE/front-center on real SKUs, not
+    the hinge, so it is kept only as a labelled fallback.
+
+    debug=true (query param) saves the hinge overlay + near/front masks to
+    VIZIIA_DEBUG_DIR (default /tmp/viziia_debug), and to S3 when configured.
+    """
     try:
         img_bytes = base64.b64decode(req.image_b64)
         img_arr = np.frombuffer(img_bytes, np.uint8)
@@ -674,25 +733,6 @@ def segment_frame_v2(req: SegmentRequest):
         proj_temple = 145 * math.sin(theta)
         hinge_ratio = proj_frame / (proj_frame + proj_temple)
         math_hinge_x = int(x_min + bbox_w * hinge_ratio)
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if not contours:
-            raise HTTPException(status_code=400, detail="No contours found")
-        c = max(contours, key=cv2.contourArea)
-        leftmost = tuple(c[c[:, :, 0].argmin()][0])
-        rightmost = tuple(c[c[:, :, 0].argmax()][0])
-        markers = np.zeros((h, w), dtype=np.int32)
-        markers[binary == 0] = 1
-        r = max(15, h // 40)
-        if req.side == "left":
-            cv2.circle(markers, rightmost, r, 2, -1)
-            cv2.circle(markers, leftmost, r, 3, -1)
-        else:
-            cv2.circle(markers, leftmost, r, 2, -1)
-            cv2.circle(markers, rightmost, r, 3, -1)
-        rgb_mask = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-        cv2.watershed(rgb_mask, markers)
-        front_mask = cv2.bitwise_and(np.where(markers == 2, 255, 0).astype(np.uint8), alpha)
-        temple_mask = cv2.bitwise_and(np.where(markers == 3, 255, 0).astype(np.uint8), alpha)
         def to_layer(mask):
             if mask.sum() == 0:
                 return None, 0, 0, 0, 0
@@ -708,13 +748,214 @@ def segment_frame_v2(req: SegmentRequest):
             cropped = layer[rmin:rmax+1, cmin:cmax+1]
             _, enc = cv2.imencode(".png", cropped)
             return base64.b64encode(enc.tobytes()).decode(), int(cmin), int(rmin), int(cmax-cmin+1), int(rmax-rmin+1)
+
+        # ── Hinge detection via per-column vertical-extent profile ──────────────
+        # The lens front is tall; the temple arm is a thin horizontal bar. The
+        # hinge is the sharp thin→tall transition scanned inward from the near
+        # extreme. We cut near_temple there so it holds ONLY the arm + endpiece —
+        # never a lens (the bridge cut's lens-fused half was the duplication seam).
+        #
+        # Tuning knobs:
+        HINGE_TALL_FRAC = 0.5    # a column is "lens/front" when its vertical extent
+                                 # is ≥ this × the tallest column (≈ lens height).
+        HINGE_PERSIST_PX = 60    # the tall run must persist this many px to count as
+                                 # the lens — skips rivet/nose-pad blips in the arm.
+        MIN_TEMPLE_WIDTH_FRAC = 0.12  # the detected arm (near-extreme → hinge) must be
+                                      # at least this fraction of the frame bbox width to
+                                      # count as a real extended temple. Below this it is
+                                      # just a folded hinge endpiece (front/near-frontal
+                                      # SKU) → fall back to near_temple=None, don't paste.
+
+        fg = alpha > 10
+        col_extent = np.zeros(w, dtype=np.int32)
+        for cx in range(x_min, x_max + 1):
+            rows = np.where(fg[:, cx])[0]
+            if rows.size:
+                col_extent[cx] = int(rows[-1] - rows[0] + 1)
+        max_extent = int(col_extent[x_min:x_max + 1].max()) if x_max >= x_min else 0
+        tall_thr = HINGE_TALL_FRAC * max_extent
+
+        # near temple sits at the near extreme: side=left → left edge (scan L→R),
+        # side=right → right edge (scan R→L). Hinge = first thin→tall that persists.
+        hinge_x = None
+        if max_extent > 0:
+            if req.side == "right":
+                scan = range(x_max, x_min - 1, -1)
+                def _persists(cx):
+                    lo = max(x_min, cx - HINGE_PERSIST_PX)
+                    seg = col_extent[lo:cx + 1]
+                    return seg.size > 0 and float(np.mean(seg >= tall_thr)) > 0.8
+            else:
+                scan = range(x_min, x_max + 1)
+                def _persists(cx):
+                    seg = col_extent[cx:cx + HINGE_PERSIST_PX]
+                    return seg.size > 0 and float(np.mean(seg >= tall_thr)) > 0.8
+            seen_thin = False
+            for cx in scan:
+                if col_extent[cx] < tall_thr:
+                    seen_thin = True
+                elif seen_thin and _persists(cx):
+                    hinge_x = int(cx)
+                    break
+
+        # Reject a too-narrow arm (folded hinge endpiece, not an extended temple).
+        if hinge_x is not None:
+            band_w = (hinge_x - x_min) if req.side != "right" else (x_max - hinge_x)
+            if band_w < MIN_TEMPLE_WIDTH_FRAC * bbox_w:
+                hinge_x = None
+
+        # ── Fallback: no thin temple run (front view / temple-less SKU) ─────────
+        # Do NOT fabricate a temple — return the whole frame as front_frame and
+        # near_temple=None so front and other non-3/4 paths are never regressed.
+        if hinge_x is None:
+            full_b64, fx, fy, fw, fh = to_layer(alpha)
+            if debug:
+                _save_segv2_debug(req.side, bgr, alpha, None, alpha, None)
+            return {
+                "hinge": {"x": math_hinge_x, "y": int((y_min + y_max) / 2)},
+                "hinge_ratio": round(hinge_ratio, 3),
+                "hinge_source": "fallback-none",
+                "front_frame": {"b64": full_b64, "x": fx, "y": fy, "w": fw, "h": fh} if full_b64 else None,
+                "near_temple": None,
+            }
+
+        # ── Build masks from the hinge cut ──────────────────────────────────────
+        near_band = np.zeros((h, w), dtype=np.uint8)
+        if req.side == "right":
+            near_band[:, hinge_x:x_max + 1] = 255    # near temple = right of hinge
+        else:
+            near_band[:, x_min:hinge_x + 1] = 255    # near temple = left of hinge
+        temple_mask = cv2.bitwise_and(alpha, near_band)                    # arm + endpiece only
+        front_mask = cv2.bitwise_and(alpha, cv2.bitwise_not(near_band))    # both lenses + bridge (+ far stub)
+
+        if debug:
+            _save_segv2_debug(req.side, bgr, alpha, hinge_x, front_mask, temple_mask)
+
         front_b64, fx, fy, fw, fh = to_layer(front_mask)
         temple_b64, tx, ty, tw, th = to_layer(temple_mask)
         return {
-            "hinge": {"x": math_hinge_x, "y": int((y_min + y_max) / 2)},
+            "hinge": {"x": hinge_x, "y": int((y_min + y_max) / 2)},   # DETECTED hinge, not projection
             "hinge_ratio": round(hinge_ratio, 3),
+            "hinge_source": "extent",
             "front_frame": {"b64": front_b64, "x": fx, "y": fy, "w": fw, "h": fh} if front_b64 else None,
             "near_temple": {"b64": temple_b64, "x": tx, "y": ty, "w": tw, "h": th} if temple_b64 else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ── SKU orientation detection (validated standalone; see 3q-temple-placement-plan) ──
+# Which way does the frame face? Signal = which side holds the thin extended temple
+# vs the tall lens. Frame faces AWAY from the extended-temple side. Three mask-sanity
+# guards keep clear/crystal frames and garbage masks in a safe low-confidence band so
+# the caller never confidently flips them. Locked thresholds (validated on 6 SKUs):
+_ORI_HINGE_TALL_FRAC = 0.5        # column is "lens/front" when extent >= this * max_extent
+_ORI_PERSIST_PX_FRAC = 0.06       # tall run must persist this frac of bbox_w to be the lens
+_ORI_EXTENDED_TEMPLE_MIN = 0.12   # arm width / bbox_w to count as a real extended temple
+_ORI_EXTENDED_TEMPLE_MAX = 0.55   # above this = no lens region found = garbage mask
+_ORI_FULLH_FRAC = 0.95            # max_extent >= this * img_h = spurious full-height column
+_ORI_CLEAR_COVERAGE_MIN = 0.10    # bbox fg density below this = clear/crystal frame
+_ORI_CONF_MIN = 0.60              # caller flips only when confidence >= this
+
+def _orient_alpha(img):
+    if img.ndim == 3 and img.shape[2] >= 4:
+        a = img[:, :, 3]
+        if int(a.min()) != int(a.max()):
+            return a, "rgba-matte"
+    g = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+    _, a = cv2.threshold(g, 240, 255, cv2.THRESH_BINARY_INV)
+    return a, "rgb-threshold"
+
+def _orient_temple_run(col_extent, x_min, x_max, tall_thr, persist, side):
+    rng = range(x_min, x_max + 1) if side == "left" else range(x_max, x_min - 1, -1)
+    seen_thin = False
+    for cx in rng:
+        if col_extent[cx] < tall_thr:
+            seen_thin = True
+        elif seen_thin:
+            seg = col_extent[cx:cx + persist] if side == "left" else col_extent[max(x_min, cx - persist):cx + 1]
+            if seg.size and float(np.mean(seg >= tall_thr)) > 0.8:
+                return abs(cx - (x_min if side == "left" else x_max))
+    return 0
+
+@app.post("/sku-orientation")
+def sku_orientation(req: ImageRequest):
+    try:
+        img = cv2.imdecode(np.frombuffer(base64.b64decode(req.image_b64), np.uint8), cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Could not decode image")
+        if img.dtype != np.uint8:
+            img = (img >> 8).astype(np.uint8)
+        h, w = img.shape[:2]
+        alpha, amode = _orient_alpha(img)
+        fg = alpha > 10
+        ys, xs = np.where(fg)
+        if len(xs) == 0:
+            raise HTTPException(status_code=400, detail="No foreground detected")
+        x_min, x_max = int(xs.min()), int(xs.max())
+        bbox_w = x_max - x_min
+        bbox_h = int(ys.max() - ys.min() + 1)
+        col_extent = np.zeros(w, dtype=np.int32)
+        for cx in range(x_min, x_max + 1):
+            r = np.where(fg[:, cx])[0]
+            if r.size:
+                col_extent[cx] = int(r[-1] - r[0] + 1)
+        max_extent = int(col_extent[x_min:x_max + 1].max())
+        tall_thr = _ORI_HINGE_TALL_FRAC * max_extent
+        persist = max(10, int(_ORI_PERSIST_PX_FRAC * bbox_w))
+
+        L = _orient_temple_run(col_extent, x_min, x_max, tall_thr, persist, "left")
+        R = _orient_temple_run(col_extent, x_min, x_max, tall_thr, persist, "right")
+        Lf, Rf = L / bbox_w, R / bbox_w
+
+        # lens asymmetry: bridge = min-extent column in central 60% of the tall span
+        tall_idx = np.where(col_extent[x_min:x_max + 1] >= tall_thr)[0] + x_min
+        lens_ratio, lens_wider = 1.0, "none"
+        if tall_idx.size > 20:
+            t0, t1 = int(tall_idx.min()), int(tall_idx.max())
+            lo, hi = int(t0 + 0.2 * (t1 - t0)), int(t1 - 0.2 * (t1 - t0))
+            if hi > lo:
+                bridge = lo + int(np.argmin(col_extent[lo:hi + 1]))
+                lw, rw = bridge - t0, t1 - bridge
+                if min(lw, rw) > 0:
+                    lens_ratio = max(lw, rw) / min(lw, rw)
+                    lens_wider = "left" if lw > rw else "right"
+
+        density = float(fg.sum()) / (bbox_w * bbox_h)
+        g_full_h = bool(max_extent >= _ORI_FULLH_FRAC * h)
+        g_low_cov = bool(density < _ORI_CLEAR_COVERAGE_MIN)
+        g_ceiling = bool(max(Lf, Rf) > _ORI_EXTENDED_TEMPLE_MAX)
+        unreliable = g_full_h or g_low_cov or g_ceiling
+
+        extended_side = "left" if Lf >= Rf else "right"
+        extended_val, other_val = max(Lf, Rf), min(Lf, Rf)
+        has_ext = (extended_val >= _ORI_EXTENDED_TEMPLE_MIN) and not unreliable
+        facing = ("right" if extended_side == "left" else "left") if has_ext else "frontal"
+
+        temple_term = min(1.0, (extended_val - other_val) / 0.25)
+        lens_term = min(1.0, max(0.0, (lens_ratio - 1.0) / 0.5))
+        if has_ext:
+            conf = 0.6 * temple_term + 0.4 * lens_term
+            conf = min(1.0, conf + 0.1) if (lens_wider == facing) else max(0.0, conf - 0.2)
+        else:
+            conf = 0.15 * lens_term
+        if unreliable:
+            facing = "frontal/uncertain"
+            conf = min(conf, 0.20)
+
+        return {
+            "facing": facing,
+            "confidence": round(conf, 2),
+            "extended_temple_side": extended_side if has_ext else None,
+            "should_flip": bool(has_ext and conf >= _ORI_CONF_MIN),  # caller flips iff this AND facing opposes head
+            "signals": {
+                "L_temple_frac": round(Lf, 3), "R_temple_frac": round(Rf, 3),
+                "lens_wider_side": lens_wider, "lens_ratio": round(lens_ratio, 2),
+                "density": round(density, 3), "max_extent": max_extent,
+                "bbox_w": bbox_w, "alpha_mode": amode,
+            },
+            "guards_fired": {"full_h": g_full_h, "low_cov": g_low_cov, "ceiling": g_ceiling},
         }
     except HTTPException:
         raise

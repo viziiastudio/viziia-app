@@ -225,11 +225,14 @@ function frameMetadataHash(frameMetadata, frontPhotoBuffer) {
 
 const ASSET_CACHE_TTL_SECONDS = 86400; // 24h — signed URL validity for cached assets
 
-async function decomposeFrameAsset(clientPhotos, frameMetadata, jobId) {
+async function decomposeFrameAsset(clientPhotos, frameMetadata, jobId, cacheKeyHint = null) {
   console.log("→ Step 1: Decomposing frame asset...");
 
-  // Check S3 cache first — avoid paying Remove.bg + SAM2 for the same SKU repeatedly
-  const cacheKey = `cache/frame-assets/${frameMetadataHash(frameMetadata, clientPhotos.front)}/asset.json`;
+  // Check S3 cache first — avoid paying Remove.bg + SAM2 for the same SKU repeatedly.
+  // cacheKeyHint lets callers cache by a stable string when clientPhotos.front is a
+  // Buffer (e.g. an orientation-flipped 3/4 SKU has no URL) — see the 3/4 angle path.
+  const cacheSeed = cacheKeyHint || clientPhotos.front;
+  const cacheKey = `cache/frame-assets/${frameMetadataHash(frameMetadata, cacheSeed)}/asset.json`;
   try {
     const cached = await s3.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key: cacheKey }));
     const body = await cached.Body.transformToString();
@@ -255,10 +258,18 @@ async function decomposeFrameAsset(clientPhotos, frameMetadata, jobId) {
     // Cache miss or expired — proceed with full decomposition
   }
 
-  console.log("   Downloading frame image...");
-  const frontImageResp = await axios.get(clientPhotos.front, { responseType: "arraybuffer" });
-  console.log("   Frame downloaded:", frontImageResp.data.byteLength, "bytes");
-  const fullFramePng = await extractWithRemoveBg(Buffer.from(frontImageResp.data));
+  // Accept either a URL (fetch) or a pre-fetched Buffer (e.g. orientation-flipped SKU).
+  let frontBuf;
+  if (Buffer.isBuffer(clientPhotos.front)) {
+    frontBuf = clientPhotos.front;
+    console.log("   Frame provided as buffer:", frontBuf.length, "bytes");
+  } else {
+    console.log("   Downloading frame image...");
+    const frontImageResp = await axios.get(clientPhotos.front, { responseType: "arraybuffer" });
+    frontBuf = Buffer.from(frontImageResp.data);
+    console.log("   Frame downloaded:", frontBuf.length, "bytes");
+  }
+  const fullFramePng = await extractWithRemoveBg(frontBuf);
   console.log("   Remove.bg done:", fullFramePng.length, "bytes");
   const lensSegmentation = await segmentLenses(fullFramePng, jobId);
 
@@ -1591,7 +1602,37 @@ async function withExponentialBackoff(fn, maxAttempts = 4, baseDelayMs = 2000) {
 // MULTI-ANGLE GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
 
+// NOTE: the old NEAR_SIDE_BY_ANGLE hardcode was retired — segSide is now derived from
+// /sku-orientation detection (extended_temple_side on the post-flip buffer) in the
+// 3/4 angle loop, which also guarantees SKU↔head orientation match.
 
+// Debug capture for offline temple-placement tuning (env-gated by VIZIIA_TEMPLE_DEBUG).
+// Saves the Gemini'd 3/4 face (no temple), the raw temple layer, and all placement
+// params to disk (+ S3 when configured) so the sweep/anchor constants can be tuned
+// offline against the real face with zero extra Gemini calls. Never throws.
+async function dumpTempleDebug(p) {
+  try {
+    const { writeFileSync, mkdirSync } = await import("fs");
+    const dir = process.env.VIZIIA_TEMPLE_DEBUG_DIR || "/tmp/viziia_temple_debug";
+    mkdirSync(dir, { recursive: true });
+    const tag = `${p.jobId}_${p.angle}`;
+    const refinedPng = await sharp(p.angleRefined).png().toBuffer();
+    const { angleRefined, rawTemple, ...params } = p;
+    writeFileSync(`${dir}/${tag}_angleRefined.png`, refinedPng);
+    writeFileSync(`${dir}/${tag}_near_temple_raw.png`, p.rawTemple);
+    writeFileSync(`${dir}/${tag}_params.json`, JSON.stringify(params, null, 2));
+    console.log(`   ✓ temple debug captured: ${dir}/${tag}_*`);
+    if (S3_BUCKET) {
+      try {
+        const put = (key, body, ct) => s3.send(new PutObjectCommand({ Bucket: S3_BUCKET, Key: key, Body: body, ContentType: ct }));
+        await put(`debug/temple/${tag}_angleRefined.png`, refinedPng, "image/png");
+        await put(`debug/temple/${tag}_near_temple_raw.png`, p.rawTemple, "image/png");
+        await put(`debug/temple/${tag}_params.json`, JSON.stringify(params), "application/json");
+        console.log(`   ✓ temple debug uploaded: s3://${S3_BUCKET}/debug/temple/${tag}_*`);
+      } catch (e) { console.warn("   ⚠ temple debug S3 upload failed:", e.message); }
+    }
+  } catch (e) { console.warn("   ⚠ temple debug capture failed:", e.message); }
+}
 
 async function decomposeAndAlignTemple(skuBuffer, angleFaceGeo, angle) {
   console.log("   → Hinge detection + temple alignment...");
@@ -1648,6 +1689,23 @@ async function decomposeAndAlignTemple(skuBuffer, angleFaceGeo, angle) {
 }
 
 
+
+// Detect which way a 3/4 SKU faces (sidecar /sku-orientation). Returns
+// { facing, confidence, extended_temple_side, should_flip, signals, guards_fired }
+// or null on failure (caller treats null as "don't flip / use as-is").
+async function detectSkuOrientation(skuBuffer) {
+  try {
+    const response = await axios.post(
+      `${MEDIAPIPE_URL}/sku-orientation`,
+      { image_b64: skuBuffer.toString("base64") },
+      { timeout: 20000 }
+    );
+    return response.data;
+  } catch (err) {
+    console.warn("   ⚠ sku-orientation failed:", err.message);
+    return null;
+  }
+}
 
 async function segmentFrameAsset(skuBuffer, side) {
   // Call sidecar to split SKU into front_frame + near_temple + far_temple
@@ -1894,17 +1952,40 @@ export async function runViziiaV5Pipeline(job) {
           try {
             const baseModel = baseModelBuffer;
             const angleModel = await generateAngleVariant(baseModel, angle, jobId);
-            // Use 3/4 SKU photo if provided
+            // 3/4 SKU: fetch ONCE, detect orientation, flip to match the head. Both
+            // decomposeFrameAsset (lenses/transform) and segment-frame-v2 (front_frame +
+            // temple) MUST run on this SAME post-flip buffer, or the lenses mirror-mismatch
+            // the front. skuBuffer/skuSegSide are iteration-scoped so the segment block reuses them.
+            let skuBuffer = null;
+            let skuSegSide = null;
             if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
               const isLeft = angle.includes("left");
+              const head = isLeft ? "left" : "right";
+              const assetUrl = (!isLeft && clientPhotos.threeQuarterRight)
+                ? clientPhotos.threeQuarterRight
+                : clientPhotos.threeQuarter;
+              const skuResp = await axios.get(assetUrl, { responseType: "arraybuffer" });
+              skuBuffer = Buffer.from(skuResp.data);
+
+              // Orientation matching — never pair an opposed SKU+head (root cause of the
+              // "turned angles hallucinate" complaint). Flip only when confident AND opposed.
+              const ori = await detectSkuOrientation(skuBuffer);
+              const flipped = !!(ori && ori.should_flip && ori.facing !== head);
+              if (flipped) skuBuffer = await sharp(skuBuffer).flop().toBuffer();
+              // segSide = visible/near temple side on the POST-flip buffer (retires NEAR_SIDE_BY_ANGLE).
+              const extSide = ori && ori.extended_temple_side;
+              skuSegSide = extSide
+                ? (flipped ? (extSide === "left" ? "right" : "left") : extSide)
+                : (head === "right" ? "left" : "right");  // fallback; temple-less SKU won't place anyway
+              console.log(`   ↳ orientation: facing=${ori ? ori.facing : "n/a"} conf=${ori ? ori.confidence : "n/a"} head=${head} flipped=${flipped} segSide=${skuSegSide} skuLen=${skuBuffer.length}`);
+
+              // Lenses/transform from the SAME (flipped) buffer as the front_frame below.
               frameAsset = await decomposeFrameAsset(
-                {
-                  front: clientPhotos.threeQuarter,
-                  left45: isLeft ? clientPhotos.threeQuarter : null,
-                  right45: isLeft ? null : clientPhotos.threeQuarter,
-                },
-                frameMetadata, jobId
+                { front: skuBuffer, left45: isLeft ? skuBuffer : null, right45: isLeft ? null : skuBuffer },
+                frameMetadata, jobId,
+                `${assetUrl}#flip=${flipped}`,   // cacheKeyHint — stable cache per flip state
               );
+              console.log(`   ↳ buffer-identity[decompose]: skuLen=${skuBuffer.length}`);
             }
             // Re-run Steps 3-6 with angle model
             const angleFaceGeo = await extractFaceGeometry(angleModel, { allowAnyPose: true });
@@ -1924,15 +2005,13 @@ export async function runViziiaV5Pipeline(job) {
               let angleComposite;
               let angleRefinedTransform = angleTransform;
 
-              // For 3/4 angles: segment SKU into front_frame + near_temple
-              if (angle.includes("three-quarter") && clientPhotos.threeQuarter) {
-                const side = angle.includes("left") ? "left" : "right";
-                const skuUrl = side === "right" && clientPhotos.threeQuarterRight
-                  ? clientPhotos.threeQuarterRight
-                  : clientPhotos.threeQuarter;
-                const skuResp = await axios.get(skuUrl, { responseType: "arraybuffer" });
-                const skuBuffer = Buffer.from(skuResp.data);
-                const segmented = await segmentFrameAsset(skuBuffer, side);
+              // For 3/4 angles: segment the SAME post-flip buffer into front_frame + near_temple.
+              if (angle.includes("three-quarter") && skuBuffer) {
+                const segSide = skuSegSide;
+                // CRITICAL: reuse the exact buffer decompose used (post-flip) so the
+                // segmented front_frame + temple agree with the lenses. Length confirms identity.
+                console.log(`   ↳ buffer-identity[segment]: skuLen=${skuBuffer.length} segSide=${segSide}`);
+                const segmented = await segmentFrameAsset(skuBuffer, segSide);
 
                 if (segmented) {
                   // Override frameAsset.frontRim with segmented front_frame (no temple)
@@ -1949,6 +2028,7 @@ export async function runViziiaV5Pipeline(job) {
                         buffer: segmented.nearTempleBuffer,
                         box: segmented.nearTempleBox,
                         hinge: segmented.hinge,
+                        segSide,
                       };
                     }
                   }
@@ -1973,31 +2053,86 @@ export async function runViziiaV5Pipeline(job) {
                 angleFaceGeo, angleRefinedTransform,
                 { ...job.frameMetadata?.lens || {}, ...job.frameMetadata?.dimensions || {} }
               );
-              // Post-Gemini: composite near_temple deterministically
+              // Post-Gemini: composite near_temple deterministically.
+              // GATED OFF (Version A): Gemini already renders a realistic, perspective-
+              // correct temple from the full SKU reference (Image 2) once the SKU is
+              // orientation-matched — better than this flat deterministic paste. We keep
+              // ALL the deterministic temple code (placement/tuner/hinge-crop/bracket-trim)
+              // behind this flag so it's revertible if a future SKU needs it.
+              const USE_DETERMINISTIC_TEMPLE = false;
               let finalAngleBuffer = angleRefined;
-              if (angleRefinedTransform._nearTemple) {
+              if (USE_DETERMINISTIC_TEMPLE && angleRefinedTransform._nearTemple) {
                 try {
-                  const { buffer: templeBuffer, hinge, box } = angleRefinedTransform._nearTemple;
-                  const angleMeta = await sharp(angleModel).metadata();
-                  
-                  // Scale temple to match frame scale
-                  const scaleRatio = (angleRefinedTransform.frameBox?.width || 300) / 2409;
-                  const scaledW = Math.max(10, Math.round(box.w * scaleRatio));
-                  const scaledH = Math.max(10, Math.round(box.h * scaleRatio));
-                  
+                  const { buffer: templeBuffer, box, segSide } = angleRefinedTransform._nearTemple;
+                  const fb = angleRefinedTransform.frameBox;
+
+                  // ── Landmark-free geometric temple placement ──────────────────────
+                  // near_temple is a temple-ONLY arm (sidecar hinge-crop, cffe128). Seat its
+                  // hinge-end at the frame's near-side hinge edge and sweep it back + slightly
+                  // down toward the (hair-occluded) ear. No landmarks: the sidecar aliases the
+                  // ear landmark to the temple (degenerate), and headPose.yaw is unreliable on
+                  // synthesized 3/4 faces. See docs/3q-temple-placement-plan.md.
+                  const SWEEP_DEG = 12;          // downward tilt of the arm toward the ear
+                  const hingeHeightFrac = 0.20;  // hinge height down the lens (frame space)
+                  const ARM_AXIS_FRAC = 0.30;    // arm centerline within the temple layer (measured)
+
+                  // Scale: arm length = PIM temple length relative to frame width.
+                  const dims = job.frameMetadata?.dimensions || {};
+                  const templeLenPx = (dims.templeLengthMm && dims.frameWidthMm)
+                    ? fb.width * (dims.templeLengthMm / dims.frameWidthMm)
+                    : fb.width;  // fallback if PIM dims missing: ~frame width
+                  const tScale = templeLenPx / box.w;
+                  const scaledW = Math.max(10, Math.round(box.w * tScale));
+                  const scaledH = Math.max(10, Math.round(box.h * tScale));
                   const scaledTemple = await sharp(templeBuffer)
-                    .resize(scaledW, scaledH, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .resize(scaledW, scaledH, { fit: "fill" })
                     .png().toBuffer();
 
-                  // Position temple at hinge point
-                  const hingeScaled = Math.round(hinge.x * scaleRatio);
-                  const templeLeft = Math.max(0, angleRefinedTransform.frameBox.x + angleRefinedTransform.frameBox.width - hingeScaled);
-                  const templeTop = Math.max(0, angleRefinedTransform.frameBox.y - Math.round(scaledH * 0.3));
+                  // Rotate about center (sharp auto-expands). +theta drops the earpiece end.
+                  const theta = segSide === "left" ? SWEEP_DEG : -SWEEP_DEG;
+                  const rotatedTemple = await sharp(scaledTemple)
+                    .rotate(theta, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .png().toBuffer();
+                  const rMeta = await sharp(rotatedTemple).metadata();
+
+                  // Hinge anchor on the face = frame near-side edge at lens-top height.
+                  const H = {
+                    x: segSide === "left" ? fb.x : fb.x + fb.width,
+                    y: fb.y + hingeHeightFrac * fb.height,
+                  };
+                  // Hinge-end point in the scaled (pre-rotate) layer: near-frame edge,
+                  // at the arm centerline (NOT the column center — a tall hinge bracket
+                  // dangles below; measured arm axis ≈ 0.30·H).
+                  const P = {
+                    x: segSide === "left" ? scaledW : 0,
+                    y: ARM_AXIS_FRAC * scaledH,
+                  };
+                  // Where P lands after sharp's center-rotation + expand:
+                  //   Prot = centerNew + R(theta)·(P − centerOld)
+                  const rad = (theta * Math.PI) / 180;
+                  const cosT = Math.cos(rad), sinT = Math.sin(rad);
+                  const relX = P.x - scaledW / 2, relY = P.y - scaledH / 2;
+                  const Prot = {
+                    x: rMeta.width / 2 + (cosT * relX - sinT * relY),
+                    y: rMeta.height / 2 + (sinT * relX + cosT * relY),
+                  };
+                  const templeLeft = Math.round(H.x - Prot.x);
+                  const templeTop = Math.round(H.y - Prot.y);
+
+                  // Debug capture FIRST (before composite) so offline tuning has the data
+                  // even if the composite errors (e.g. negative offset off the left edge).
+                  if (process.env.VIZIIA_TEMPLE_DEBUG) {
+                    await dumpTempleDebug({
+                      angleRefined, rawTemple: templeBuffer, frameBox: fb, box, segSide,
+                      H, scaledW, scaledH, theta, templeLeft, templeTop, dims, jobId, angle,
+                      SWEEP_DEG, hingeHeightFrac, ARM_AXIS_FRAC,
+                    });
+                  }
 
                   finalAngleBuffer = await sharp(angleRefined)
-                    .composite([{ input: scaledTemple, left: templeLeft, top: templeTop, blend: "over" }])
+                    .composite([{ input: rotatedTemple, left: templeLeft, top: templeTop, blend: "over" }])
                     .toBuffer();
-                  console.log(`   ✓ Near temple composited post-Gemini (${scaledW}x${scaledH}px)`);
+                  console.log(`   ✓ Near temple placed (segSide=${segSide}, ${scaledW}x${scaledH}, theta=${theta}°, at ${templeLeft},${templeTop}; H=${Math.round(H.x)},${Math.round(H.y)})`);
                 } catch (tErr) {
                   console.warn("   ⚠ Temple composite failed:", tErr.message);
                 }
